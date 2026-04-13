@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Select, Button, Card, Row, Col, Slider, Image as AntImage, message, Upload } from 'antd'
-import { DownloadOutlined, ReloadOutlined, UploadOutlined } from '@ant-design/icons'
+import { Select, Button, Card, Row, Col, Slider, Image as AntImage, message, Upload, Radio, Tooltip, Space } from 'antd'
+import { DownloadOutlined, ReloadOutlined, UploadOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import { composeImage } from './lib/composeImage'
-import { CANVAS_WIDTH, CANVAS_HEIGHT, BG_FILENAME } from './config'
+import { BG_FILENAME } from './config'
 import { charInfoMap, factionLogoMap, professionCharMap, charSkinsMap } from './data/mappings'
 
 const { Option } = Select
@@ -25,6 +25,9 @@ function App() {
   const [charPos, setCharPos] = useState(0.5)
   const [logoScale, setLogoScale] = useState(1)
   const [selectedFaction, setSelectedFaction] = useState('')
+  
+  // 输出质量设置: 4K | 2K | 1080p
+  const [outputQuality, setOutputQuality] = useState('4K')
   
   // 用户上传的立绘列表和当前选中的上传图
   const [uploadedImages, setUploadedImages] = useState(() => {
@@ -190,6 +193,11 @@ function App() {
 
     const canvas = canvasRef.current
     
+    // 根据输出质量设置画布尺寸
+    const { width, height } = getCanvasSize()
+    canvas.width = width
+    canvas.height = height
+    
     // 确定立绘来源：优先使用用户上传的图片
     let charImage
     const uploadedImgObj = getSelectedUploadedImageObj()
@@ -236,7 +244,7 @@ function App() {
     } finally {
       setLoading(false)
     }
-  }, [selectedChar, selectedSkin, selectedFaction, charScale, charPos, logoScale, getArtFile, selectedUploadedImage, uploadedImages])
+  }, [selectedChar, selectedSkin, selectedFaction, charScale, charPos, logoScale, getArtFile, selectedUploadedImage, uploadedImages, outputQuality])
 
   // 组件挂载后执行首次合成
   useEffect(() => {
@@ -282,6 +290,20 @@ function App() {
     message.success('下载开始')
   }
 
+  // 根据输出质量获取画布尺寸
+  const getCanvasSize = () => {
+    switch (outputQuality) {
+      case '4K':
+        return { width: 3840, height: 2160 }
+      case '2K':
+        return { width: 2560, height: 1440 }
+      case '1080p':
+        return { width: 1920, height: 1080 }
+      default:
+        return { width: 3840, height: 2160 }
+    }
+  }
+
   // 重置参数
   const handleReset = () => {
     setCharScale(1)
@@ -289,6 +311,7 @@ function App() {
     setLogoScale(1)
     setSelectedFaction('')
     setSelectedUploadedImage(null)
+    setOutputQuality('4K')
     message.success('参数已重置')
   }
 
@@ -305,8 +328,13 @@ function App() {
             {/* 用户上传立绘 */}
             <div style={{ marginBottom: 24 }}>
               <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>
-                自定义立绘
-                {selectedUploadedImage && <span style={{ color: '#52c41a', fontSize: 12, marginLeft: 8 }}>已选择</span>}
+                <Space>
+                  自定义立绘
+                  <Tooltip title="上传图片列表将保持，直到你关闭本页面">
+                    <InfoCircleOutlined style={{ color: '#8c8c8c', fontSize: 14 }} />
+                  </Tooltip>
+                  {selectedUploadedImage && <span style={{ color: '#52c41a', fontSize: 12 }}>已选择</span>}
+                </Space>
               </label>
               <Row gutter={[8, 8]}>
                 <Col flex="auto">
@@ -426,9 +454,10 @@ function App() {
 
             {/* 立绘倍率 */}
             <div style={{ marginBottom: 24 }}>
-              <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>
-                立绘图片大小: {charScale.toFixed(1)}
-              </label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <label style={{ fontWeight: 500 }}>立绘图片大小</label>
+                <span style={{ color: '#8c8c8c' }}>{charScale.toFixed(1)}</span>
+              </div>
               <Slider
                 min={0.5}
                 max={2}
@@ -441,9 +470,10 @@ function App() {
 
             {/* 立绘位置 */}
             <div style={{ marginBottom: 24 }}>
-              <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>
-                立绘图片位置: {(charPos * 100).toFixed(0)}%
-              </label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <label style={{ fontWeight: 500 }}>立绘图片位置</label>
+                <span style={{ color: '#8c8c8c' }}>{(charPos * 100).toFixed(0)}%</span>
+              </div>
               <Slider
                 min={0.3}
                 max={0.7}
@@ -456,9 +486,10 @@ function App() {
 
             {/* Logo倍率 */}
             <div style={{ marginBottom: 24 }}>
-              <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>
-                Logo大小: {logoScale.toFixed(1)}
-              </label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <label style={{ fontWeight: 500 }}>Logo大小</label>
+                <span style={{ color: '#8c8c8c' }}>{logoScale.toFixed(1)}</span>
+              </div>
               <Slider
                 min={0.5}
                 max={2}
@@ -467,6 +498,28 @@ function App() {
                 onChange={setLogoScale}
                 disabled={!selectedSkin}
               />
+            </div>
+
+            {/* 输出质量 */}
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>
+                <Space>
+                  输出质量
+                  <Tooltip title={<span>4K: 3840×2160<br/>2K: 2560×1440<br/>1080p: 1920×1080</span>}>
+                    <InfoCircleOutlined style={{ color: '#8c8c8c', fontSize: 14 }} />
+                  </Tooltip>
+                </Space>
+              </label>
+              <Radio.Group
+                value={outputQuality}
+                onChange={(e) => setOutputQuality(e.target.value)}
+                optionType="button"
+                buttonStyle="solid"
+              >
+                <Radio.Button value="4K">4K</Radio.Button>
+                <Radio.Button value="2K">2K</Radio.Button>
+                <Radio.Button value="1080p">1080p</Radio.Button>
+              </Radio.Group>
             </div>
 
             {/* 操作按钮 */}
@@ -503,8 +556,6 @@ function App() {
               {/* 隐藏的canvas用于绘制 */}
               <canvas
                 ref={canvasRef}
-                width={CANVAS_WIDTH}
-                height={CANVAS_HEIGHT}
                 style={{ display: 'none' }}
               />
               {/* 用Image显示合成结果 */}
