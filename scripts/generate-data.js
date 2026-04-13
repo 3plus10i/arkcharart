@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const projectRoot = path.join(__dirname, '..')
-const assetsDir = path.join(projectRoot, 'assets')
+const assetsDir = path.join(projectRoot, 'public')
 const srcDataDir = path.join(projectRoot, 'src', 'data')
 
 // 确保data目录存在

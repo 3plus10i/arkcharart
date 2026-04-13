@@ -167,6 +167,8 @@ function App() {
           setSelectedFaction('罗德岛')
         }
         message.success('立绘上传成功')
+        // 触发合成（延迟确保状态更新）
+        setTimeout(() => generateImage(), 100)
       }
       img.onerror = () => {
         message.error('图片加载失败')
@@ -195,7 +197,7 @@ function App() {
     } else {
       const artFile = getArtFile()
       if (!artFile) return
-      charImage = `assets/chararts/${artFile}`
+      charImage = `chararts/${artFile}`
     }
     
     // 获取阵营
@@ -219,9 +221,9 @@ function App() {
     try {
       await composeImage(
         canvas,
-        'assets/bg.png',
+        'bg.png',
         charImage,
-        `assets/logos/${logoFile}`,
+        `logos/${logoFile}`,
         { charScale, charPos, logoScale }
       )
       // 生成图片URL用于显示
@@ -541,17 +543,17 @@ function App() {
           <Col>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               <a href="https://github.com/3plus10i/arkcharart" target="_blank" rel="noopener noreferrer">
-                <img src="assets/github-favicon.svg" alt="GitHub" style={{ width: 16, height: 16, display: 'block' }} />
+                <img src="github-favicon.svg" alt="GitHub" style={{ width: 16, height: 16, display: 'block' }} />
               </a>
               <a href="https://blog.3plus10i.top" target="_blank" rel="noopener noreferrer">
-                <img src="assets/blog-icon.ico" alt="博客" style={{ width: 16, height: 16, display: 'block' }} />
+                <img src="blog-icon.ico" alt="博客" style={{ width: 16, height: 16, display: 'block' }} />
               </a>
               <span style={{ color: '#d9d9d9' }}>|</span>
               <a href="https://ak.hypergryph.com/" target="_blank" rel="noopener noreferrer">
-                <img src="assets/arknights-favicon.ico" alt="明日方舟" style={{ width: 16, height: 16, display: 'block' }} />
+                <img src="arknights-favicon.ico" alt="明日方舟" style={{ width: 16, height: 16, display: 'block' }} />
               </a>
               <a href="https://prts.wiki" target="_blank" rel="noopener noreferrer">
-                <img src="assets/prts-favicon.ico" alt="PRTS" style={{ width: 16, height: 16, display: 'block' }} />
+                <img src="prts-favicon.ico" alt="PRTS" style={{ width: 16, height: 16, display: 'block' }} />
               </a>
             </div>
           </Col>
