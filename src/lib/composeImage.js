@@ -8,47 +8,26 @@
  * 5. 中心人物立绘
  */
 
-// ==================== 画布配置 ====================
+import {
+  CANVAS_WIDTH,
+  CANVAS_HEIGHT,
+  DEFAULT_BG_CHAR_X,
+  DEFAULT_BG_CHAR_Y,
+  DEFAULT_BG_CHAR_HEIGHT_SCALE,
+  DEFAULT_LOGO_X,
+  DEFAULT_LOGO_Y,
+  DEFAULT_LOGO_HEIGHT_SCALE,
+  LOGO_SHADOW_INTENSITY,
+  LOGO_SHADOW_BLUR,
+  LOGO_SHADOW_COLOR,
+  DEFAULT_OVERLAY_ALPHA_LEFT,
+  DEFAULT_OVERLAY_ALPHA_RIGHT,
+  DEFAULT_CENTER_CHAR_X,
+  DEFAULT_CENTER_CHAR_Y,
+  DEFAULT_CENTER_CHAR_HEIGHT_SCALE
+} from '../config.js'
 
-/** 画布宽度 */
-export const CANVAS_WIDTH = 2720
-/** 画布高度 */
-export const CANVAS_HEIGHT = 1600
-
-// ==================== 默认配置 ====================
-
-/** 背景大立绘默认水平位置 (0-1) */
-const DEFAULT_BG_CHAR_X = 0.7
-/** 背景大立绘默认垂直位置 (0-1) */
-const DEFAULT_BG_CHAR_Y = 0.5
-/** 背景大立绘默认高度比例 */
-const DEFAULT_BG_CHAR_HEIGHT_SCALE = 1.2
-
-/** 阵营图标默认水平位置 (0-1) */
-const DEFAULT_LOGO_X = 0.15
-/** 阵营图标默认垂直位置 (0-1) */
-const DEFAULT_LOGO_Y = 0.2
-/** 阵营图标默认高度比例 */
-const DEFAULT_LOGO_HEIGHT_SCALE = 0.75
-
-/** Logo阴影强度 (0=无阴影, 1=默认阴影) */
-const LOGO_SHADOW_INTENSITY = 0.5
-/** Logo阴影模糊半径 */
-const LOGO_SHADOW_BLUR = 20
-/** Logo阴影颜色 */
-const LOGO_SHADOW_COLOR = 'rgba(0, 0, 0, 0.5)'
-
-/** 白色遮罩左侧默认不透明度 */
-const DEFAULT_OVERLAY_ALPHA_LEFT = 0.5
-/** 白色遮罩右侧默认不透明度 */
-const DEFAULT_OVERLAY_ALPHA_RIGHT = 0.7
-
-/** 中心立绘默认水平位置 (0-1) */
-const DEFAULT_CENTER_CHAR_X = 0.5
-/** 中心立绘默认垂直位置 (0-1) */
-const DEFAULT_CENTER_CHAR_Y = 0.5
-/** 中心立绘默认高度比例 */
-const DEFAULT_CENTER_CHAR_HEIGHT_SCALE = 1.0
+export { CANVAS_WIDTH, CANVAS_HEIGHT }
 
 // ==================== 核心函数 ====================
 

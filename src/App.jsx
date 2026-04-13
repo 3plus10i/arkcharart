@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Select, Button, Card, Row, Col, Slider, Image as AntImage, message, Upload } from 'antd'
 import { DownloadOutlined, ReloadOutlined, UploadOutlined } from '@ant-design/icons'
-import { composeImage, CANVAS_WIDTH, CANVAS_HEIGHT } from './lib/composeImage'
+import { composeImage } from './lib/composeImage'
+import { CANVAS_WIDTH, CANVAS_HEIGHT, BG_FILENAME } from './config'
 import { charInfoMap, factionLogoMap, professionCharMap, charSkinsMap } from './data/mappings'
 
 const { Option } = Select
@@ -221,7 +222,7 @@ function App() {
     try {
       await composeImage(
         canvas,
-        'bg.png',
+        BG_FILENAME,
         charImage,
         `logos/${logoFile}`,
         { charScale, charPos, logoScale }
