@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Select, Button, Card, Row, Col, Slider, Image, message } from 'antd'
 import { DownloadOutlined, ReloadOutlined } from '@ant-design/icons'
-import { composeImage } from './lib/composeImage'
+import { composeImage, CANVAS_WIDTH, CANVAS_HEIGHT } from './lib/composeImage'
 import { charInfoMap, factionLogoMap, professionCharMap, charSkinsMap } from './data/mappings'
 
 const { Option } = Select
@@ -221,58 +221,58 @@ function App() {
       <Row gutter={[24, 24]}>
         <Col xs={24} md={8}>
           <Card title="参数面板">
-            {/* 第一级：职业选择 */}
+            {/* 三级联选：职业、角色、皮肤 */}
             <div style={{ marginBottom: 24 }}>
-              <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>职业</label>
-              <Select
-                style={{ width: '100%' }}
-                placeholder="选择职业"
-                value={selectedProfession || undefined}
-                onChange={handleProfessionChange}
-                loading={loading}
-              >
-                {professions.map(prof => (
-                  <Option key={prof} value={prof}>{prof}</Option>
-                ))}
-              </Select>
-            </div>
-
-            {/* 第二级：角色选择 */}
-            <div style={{ marginBottom: 24 }}>
-              <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>角色</label>
-              <Select
-                style={{ width: '100%' }}
-                placeholder={selectedProfession ? '选择角色' : '请先选择职业'}
-                value={selectedChar || undefined}
-                onChange={handleCharChange}
-                loading={loading}
-                disabled={!selectedProfession}
-                showSearch
-                filterOption={(input, option) =>
-                  option.children.toLowerCase().includes(input.toLowerCase())
-                }
-              >
-                {availableChars.map(char => (
-                  <Option key={char} value={char}>{char}</Option>
-                ))}
-              </Select>
-            </div>
-
-            {/* 第三级：皮肤选择 */}
-            <div style={{ marginBottom: 24 }}>
-              <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>立绘</label>
-              <Select
-                style={{ width: '100%' }}
-                placeholder={selectedChar ? '选择立绘' : '请先选择角色'}
-                value={selectedSkin || undefined}
-                onChange={setSelectedSkin}
-                loading={loading}
-                disabled={!selectedChar}
-              >
-                {availableSkins.map(skin => (
-                  <Option key={skin.code} value={skin.code}>{skin.name}</Option>
-                ))}
-              </Select>
+              <Row gutter={[12, 12]}>
+                <Col span={8}>
+                  <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>职业</label>
+                  <Select
+                    style={{ width: '100%' }}
+                    placeholder="选择职业"
+                    value={selectedProfession || undefined}
+                    onChange={handleProfessionChange}
+                    loading={loading}
+                  >
+                    {professions.map(prof => (
+                      <Option key={prof} value={prof}>{prof}</Option>
+                    ))}
+                  </Select>
+                </Col>
+                <Col span={8}>
+                  <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>角色</label>
+                  <Select
+                    style={{ width: '100%' }}
+                    placeholder={selectedProfession ? '选择角色' : '请先选择职业'}
+                    value={selectedChar || undefined}
+                    onChange={handleCharChange}
+                    loading={loading}
+                    disabled={!selectedProfession}
+                    showSearch
+                    filterOption={(input, option) =>
+                      option.children.toLowerCase().includes(input.toLowerCase())
+                    }
+                  >
+                    {availableChars.map(char => (
+                      <Option key={char} value={char}>{char}</Option>
+                    ))}
+                  </Select>
+                </Col>
+                <Col span={8}>
+                  <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>立绘</label>
+                  <Select
+                    style={{ width: '100%' }}
+                    placeholder={selectedChar ? '选择立绘' : '请先选择角色'}
+                    value={selectedSkin || undefined}
+                    onChange={setSelectedSkin}
+                    loading={loading}
+                    disabled={!selectedChar}
+                  >
+                    {availableSkins.map(skin => (
+                      <Option key={skin.code} value={skin.code}>{skin.name}</Option>
+                    ))}
+                  </Select>
+                </Col>
+              </Row>
             </div>
 
             {/* 阵营Logo选择 */}
@@ -344,44 +344,42 @@ function App() {
               />
             </div>
 
-            {/* 重置按钮 */}
-            <Button
-              type="primary"
-              icon={<ReloadOutlined />}
-              onClick={handleReset}
-              block
-              disabled={!selectedSkin}
-            >
-              重置参数
-            </Button>
-          </Card>
-        </Col>
-
-        <Col xs={24} md={16}>
-          <Card 
-            title={
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>预览</span>
+            {/* 操作按钮 */}
+            <Row gutter={[12, 12]}>
+              <Col span={12}>
+                <Button
+                  icon={<ReloadOutlined />}
+                  onClick={handleReset}
+                  disabled={!selectedSkin}
+                  block
+                >
+                  重置
+                </Button>
+              </Col>
+              <Col span={12}>
                 <Button
                   type="primary"
                   icon={<DownloadOutlined />}
                   onClick={handleDownload}
                   loading={loading}
-                  size="small"
                   disabled={!previewUrl}
+                  block
                 >
                   下载
                 </Button>
-              </div>
-            }
-            loading={loading}
-          >
+              </Col>
+            </Row>
+          </Card>
+        </Col>
+
+        <Col xs={24} md={16}>
+          <Card title="预览" loading={loading}>
             <div style={{ textAlign: 'center' }}>
               {/* 隐藏的canvas用于绘制 */}
               <canvas
                 ref={canvasRef}
-                width={1360}
-                height={800}
+                width={CANVAS_WIDTH}
+                height={CANVAS_HEIGHT}
                 style={{ display: 'none' }}
               />
               {/* 用Image显示合成结果 */}
