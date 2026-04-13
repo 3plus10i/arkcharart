@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { Select, Button, Card, Row, Col, Slider, Image as AntImage, message, Upload, Radio, Tooltip, Space, Segmented, Spin } from 'antd'
 import { DownloadOutlined, ReloadOutlined, UploadOutlined, InfoCircleOutlined } from '@ant-design/icons'
+import iconUrl from '/icon.png'
 import { composeImage } from './lib/composeImage'
 import { BG_FILENAME } from './config'
 import { factions } from './data/faction'
@@ -296,7 +297,7 @@ function App() {
   return (
     <div style={{ padding: '16px 24px', maxWidth: 1800, margin: '0 auto', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <h1 style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <img src="/icon.png" alt="" style={{ width: 40, height: 40 }} />
+        <img src={iconUrl} alt="" style={{ width: 40, height: 40 }} />
         明日方舟立绘合成工具
       </h1>
 
