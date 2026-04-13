@@ -1,0 +1,6 @@
+.dev/
+subproject/
+.code*/
+dist
+.vscode
+node_modules
