@@ -1,112 +1,112 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { Select, Button, Card, Row, Col, Slider, Image as AntImage, message, Upload, Radio, Tooltip, Space, Segmented } from 'antd'
 import { DownloadOutlined, ReloadOutlined, UploadOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import { composeImage } from './lib/composeImage'
 import { BG_FILENAME } from './config'
-import { charInfoMap, factionLogoMap, professionCharMap, charSkinsMap } from './data/mappings'
+import { factions } from './data/faction'
+import { charsInfo } from './data/charsInfo'
+import { initPresetArts, buildArtIndex, codeToName } from './lib/artListManager'
+import { parseArtFilename } from './lib/parseArtFile'
 
 const { Option } = Select
-
-// 获取所有可用的阵营列表
-const factionList = Object.keys(factionLogoMap)
 
 function App() {
   const [loading, setLoading] = useState(false)
   const [previewUrl, setPreviewUrl] = useState('')
   const [isInitialized, setIsInitialized] = useState(false)
-  
+
+  // 初始化预置立绘索引（只算一次）
+  const { artList, professions, charMap } = useMemo(() => {
+    const arts = initPresetArts()
+    const { professions, charMap } = buildArtIndex(arts)
+    return { artList: arts, professions, charMap }
+  }, [])
+
   // 三级选择状态
   const [selectedProfession, setSelectedProfession] = useState('')
   const [selectedChar, setSelectedChar] = useState('')
-  const [selectedSkin, setSelectedSkin] = useState('')
-  
+  const [selectedSkin, setSelectedSkin] = useState('') // code
+
   // 参数状态
   const [charScale, setCharScale] = useState(1)
   const [charPos, setCharPos] = useState(0.5)
   const [logoScale, setLogoScale] = useState(1)
-  const [selectedFaction, setSelectedFaction] = useState('')
-  
-  // 输出质量设置: 4K | 2K | 1080p
+  const [selectedFaction, setSelectedFaction] = useState(null) // null=本家, ''=无logo, 其他=指定势力
+
+  // 输出质量
   const [outputQuality, setOutputQuality] = useState('4K')
-  
-  // 立绘来源模式: 'upload' | 'select'
+
+  // 立绘来源模式
   const [artSourceMode, setArtSourceMode] = useState('select')
-  
-  // 用户上传的立绘列表和当前选中的上传图
+
+  // 用户上传的立绘列表（含解析出的元信息）
   const [uploadedImages, setUploadedImages] = useState(() => {
-    // 从 sessionStorage 恢复
     const saved = sessionStorage.getItem('arkcharart_uploaded')
     return saved ? JSON.parse(saved) : []
   })
   const [selectedUploadedImage, setSelectedUploadedImage] = useState(null)
-  
+
   const canvasRef = useRef(null)
 
-  // 获取有立绘的角色列表
-  const charsWithSkins = Object.keys(charSkinsMap)
-  
-  // 职业列表（只包含有立绘的角色所属的职业）
-  const professions = Object.keys(professionCharMap)
-    .filter(prof => {
-      // 该职业下是否有至少一个角色有立绘
-      return professionCharMap[prof].some(char => charsWithSkins.includes(char))
-    })
-    .sort()
+  // 当前选中角色下的立绘列表
+  const availableSkins = selectedChar && charMap[selectedChar] ? charMap[selectedChar] : []
 
-  // 根据选择的职业获取角色列表（只包含有立绘的角色）
-  const availableChars = selectedProfession 
-    ? (professionCharMap[selectedProfession] || []).filter(char => charsWithSkins.includes(char))
-    : []
+  // 当前选中皮肤对应的立绘记录
+  const currentArt = availableSkins.find(s => s.code === selectedSkin) || null
 
-  // 根据选择的角色获取皮肤列表
-  const availableSkins = selectedChar && charSkinsMap[selectedChar] ? charSkinsMap[selectedChar] : []
+  // 本家势力：从当前立绘记录或charsInfo获取
+  const homeFaction = currentArt?.faction || (selectedChar ? charsInfo[selectedChar]?.faction : '') || ''
 
-  // 获取角色的职业
-  const getCharProfession = (charName) => {
-    for (const [prof, chars] of Object.entries(professionCharMap)) {
-      if (chars.includes(charName)) return prof
-    }
-    return null
-  }
+  // 本家标签文字
+  const homeFactionLabel = homeFaction ? `本家${homeFaction}` : ''
 
   // 页面初始化：默认选择蓝毒
   useEffect(() => {
     if (isInitialized) return
-    
     const defaultChar = '蓝毒'
-    if (charsWithSkins.includes(defaultChar)) {
-      const profession = getCharProfession(defaultChar)
-      if (profession) {
-        setSelectedProfession(profession)
+    if (charMap[defaultChar] && charMap[defaultChar].length > 0) {
+      const info = charsInfo[defaultChar]
+      if (info) {
+        setSelectedProfession(info.profession)
         setSelectedChar(defaultChar)
-        // 选择第一个皮肤
-        const skins = charSkinsMap[defaultChar]
-        if (skins && skins.length > 0) {
-          setSelectedSkin(skins[0].code)
-        }
+        setSelectedSkin(charMap[defaultChar][0].code)
       }
     }
     setIsInitialized(true)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isInitialized])
+  }, [isInitialized, charMap])
 
-  // 职业变化时，默认选中该职业第一个干员的第一个皮肤
+  // 切换立绘/加载立绘时：自动设置本家势力
+  useEffect(() => {
+    if (artSourceMode !== 'select') return
+    if (!selectedChar || !selectedSkin) return
+    // 选中本家势力
+    setSelectedFaction(null) // null表示"本家"
+  }, [selectedChar, selectedSkin, artSourceMode])
+
+  // 根据选择的职业获取角色列表
+  const availableChars = useMemo(() => {
+    if (!selectedProfession) return []
+    return artList
+      .filter(a => a.profession === selectedProfession)
+      .map(a => a.name)
+      .filter((v, i, arr) => arr.indexOf(v) === i) // 去重
+      .sort()
+  }, [selectedProfession, artList])
+
+  // 职业变化
   const handleProfessionChange = (profession) => {
     setSelectedProfession(profession)
-    setSelectedFaction('')
-    
+    setSelectedFaction(null)
+
     if (profession) {
-      const chars = professionCharMap[profession] || []
-      // 找到第一个有立绘的干员
-      const firstCharWithSkin = chars.find(char => charsWithSkins.includes(char))
-      if (firstCharWithSkin) {
-        setSelectedChar(firstCharWithSkin)
-        const skins = charSkinsMap[firstCharWithSkin]
-        if (skins && skins.length > 0) {
-          setSelectedSkin(skins[0].code)
-        } else {
-          setSelectedSkin('')
-        }
+      const chars = artList
+        .filter(a => a.profession === profession)
+        .map(a => a.name)
+        .filter((v, i, arr) => arr.indexOf(v) === i)
+      if (chars.length > 0) {
+        setSelectedChar(chars[0])
+        const skins = charMap[chars[0]]
+        setSelectedSkin(skins && skins.length > 0 ? skins[0].code : '')
       } else {
         setSelectedChar('')
         setSelectedSkin('')
@@ -117,91 +117,85 @@ function App() {
     }
   }
 
-  // 角色变化时，默认选中该干员的第一个皮肤
+  // 角色变化
   const handleCharChange = (char) => {
     setSelectedChar(char)
-    setSelectedFaction('')
-    
+    setSelectedFaction(null)
+
     if (char) {
-      const skins = charSkinsMap[char]
-      if (skins && skins.length > 0) {
-        setSelectedSkin(skins[0].code)
-      } else {
-        setSelectedSkin('')
-      }
+      const skins = charMap[char]
+      setSelectedSkin(skins && skins.length > 0 ? skins[0].code : '')
     } else {
       setSelectedSkin('')
     }
   }
 
-  // 查找立绘文件
+  // 查找立绘文件名
   const getArtFile = useCallback(() => {
     if (!selectedChar || !selectedSkin) return null
-    const skins = charSkinsMap[selectedChar]
+    const skins = charMap[selectedChar]
     if (!skins) return null
     const skin = skins.find(s => s.code === selectedSkin)
     return skin ? skin.file : null
-  }, [selectedChar, selectedSkin])
+  }, [selectedChar, selectedSkin, charMap])
 
-  // 保存上传图片列表到 sessionStorage
+  // 保存上传图片到sessionStorage
   const saveUploadedImages = (images) => {
     sessionStorage.setItem('arkcharart_uploaded', JSON.stringify(images))
   }
 
-  // 处理用户上传立绘
+  // 处理上传图片
   const handleFileChange = ({ file }) => {
     if (!file || !file.originFileObj) return
-    
+
     const reader = new FileReader()
     reader.onload = (e) => {
       const dataUrl = e.target.result
       const img = new window.Image()
       img.onload = () => {
-        // 添加到上传列表
+        // 解析文件名（仅A类，降级到F类）
+        const parsed = parseArtFilename(file.name, true)
         const newImage = {
           id: Date.now().toString(),
           name: file.name,
-          dataUrl: dataUrl,
+          dataUrl,
           width: img.width,
-          height: img.height
+          height: img.height,
+          // 解析结果
+          charName: parsed.name,
+          profession: parsed.profession,
+          faction: parsed.faction
         }
         const newList = [...uploadedImages, newImage]
         setUploadedImages(newList)
         saveUploadedImages(newList)
         setSelectedUploadedImage(newImage.id)
-        // 默认选择罗德岛logo
-        if (!selectedFaction) {
-          setSelectedFaction('罗德岛')
-        }
+        // 自动设置本家势力
+        setSelectedFaction(null)
         message.success('立绘上传成功')
-        // 触发合成（延迟确保状态更新）
         setTimeout(() => generateImage(), 100)
       }
-      img.onerror = () => {
-        message.error('图片加载失败')
-      }
+      img.onerror = () => message.error('图片加载失败')
       img.src = dataUrl
     }
     reader.readAsDataURL(file.originFileObj)
   }
 
   // 获取当前选中的上传图片对象
-  const getSelectedUploadedImageObj = () => {
+  const getSelectedUploadedImageObj = useCallback(() => {
     return uploadedImages.find(img => img.id === selectedUploadedImage)
-  }
+  }, [uploadedImages, selectedUploadedImage])
 
   // 合成图片
   const generateImage = useCallback(async () => {
     if (!canvasRef.current) return
 
     const canvas = canvasRef.current
-    
-    // 根据输出质量设置画布尺寸
     const { width, height } = getCanvasSize()
     canvas.width = width
     canvas.height = height
-    
-    // 确定立绘来源：优先使用用户上传的图片
+
+    // 确定立绘来源
     let charImage
     const uploadedImgObj = getSelectedUploadedImageObj()
     if (uploadedImgObj) {
@@ -211,30 +205,18 @@ function App() {
       if (!artFile) return
       charImage = `chararts/${artFile}`
     }
-    
-    // 获取阵营Logo（空字符串表示无logo）
+
+    // 确定势力Logo
     let logoPath = null
-    if (selectedFaction !== '') {
-      // 用户选择了特定阵营（包括本家）
-      const faction = selectedFaction || (selectedChar && charInfoMap[selectedChar]?.faction)
-      if (faction) {
-        const logoFile = factionLogoMap[faction]
-        if (logoFile) {
-          logoPath = `logos/${logoFile}`
-        }
-      }
+    // selectedFaction: null=本家, ''=无, 其他=指定
+    let effectiveFaction = selectedFaction === null ? homeFaction : selectedFaction
+    if (effectiveFaction) {
+      logoPath = `logos/${effectiveFaction}.png`
     }
 
     setLoading(true)
     try {
-      await composeImage(
-        canvas,
-        BG_FILENAME,
-        charImage,
-        logoPath,
-        { charScale, charPos, logoScale }
-      )
-      // 生成图片URL用于显示
+      await composeImage(canvas, BG_FILENAME, charImage, logoPath, { charScale, charPos, logoScale })
       const dataUrl = canvas.toDataURL('image/png')
       setPreviewUrl(dataUrl)
     } catch (err) {
@@ -243,36 +225,28 @@ function App() {
     } finally {
       setLoading(false)
     }
-  }, [selectedChar, selectedSkin, selectedFaction, charScale, charPos, logoScale, getArtFile, selectedUploadedImage, uploadedImages, outputQuality])
+  }, [selectedChar, selectedSkin, selectedFaction, homeFaction, charScale, charPos, logoScale, getArtFile, getSelectedUploadedImageObj, outputQuality])
 
-  // 组件挂载后执行首次合成
+  // 首次合成
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (selectedChar && selectedSkin) {
-        generateImage()
-      }
+      if (selectedChar && selectedSkin) generateImage()
     }, 100)
     return () => clearTimeout(timer)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 当参数变化时重新合成（带防抖）
+  // 参数变化时重新合成
   useEffect(() => {
     if (!selectedChar || !selectedSkin) return
-    const timer = setTimeout(() => {
-      generateImage()
-    }, 200)
+    const timer = setTimeout(() => generateImage(), 200)
     return () => clearTimeout(timer)
   }, [generateImage])
 
-  // 下载图片
+  // 下载
   const handleDownload = () => {
-    if (!previewUrl) {
-      message.warning('请先生成图片')
-      return
-    }
+    if (!previewUrl) { message.warning('请先生成图片'); return }
     const link = document.createElement('a')
     link.href = previewUrl
-    // 确定文件名
     let filename
     const uploadedImgObj = getSelectedUploadedImageObj()
     if (uploadedImgObj) {
@@ -289,21 +263,15 @@ function App() {
     message.success('下载开始')
   }
 
-  // 根据输出质量获取画布尺寸
   const getCanvasSize = () => {
     switch (outputQuality) {
-      case '4K':
-        return { width: 3840, height: 2160 }
-      case '2K':
-        return { width: 2560, height: 1440 }
-      case '1080p':
-        return { width: 1920, height: 1080 }
-      default:
-        return { width: 3840, height: 2160 }
+      case '4K': return { width: 3840, height: 2160 }
+      case '2K': return { width: 2560, height: 1440 }
+      case '1080p': return { width: 1920, height: 1080 }
+      default: return { width: 3840, height: 2160 }
     }
   }
 
-  // 重置参数
   const handleReset = () => {
     setCharScale(1)
     setCharPos(0.5)
@@ -313,6 +281,9 @@ function App() {
     setArtSourceMode('select')
     message.success('参数已重置')
   }
+
+  // 势力下拉菜单的选中值（null映射到homeFaction用于显示）
+  const factionSelectValue = selectedFaction === null ? homeFaction : selectedFaction
 
   return (
     <div style={{ padding: '16px 24px', maxWidth: 1800, margin: '0 auto', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -335,18 +306,16 @@ function App() {
                 onChange={(value) => {
                   setArtSourceMode(value)
                   if (value === 'upload') {
-                    // 切换到上传模式：如果有上传图片则选最后一个
                     if (uploadedImages.length > 0) {
                       setSelectedUploadedImage(uploadedImages[uploadedImages.length - 1].id)
                     }
                   } else {
-                    // 切换到选择模式：停用自选
                     setSelectedUploadedImage(null)
                   }
                 }}
                 options={[
                   { label: '选择立绘', value: 'select' },
-                  { 
+                  {
                     label: (
                       <span>
                         上传图片
@@ -354,13 +323,13 @@ function App() {
                           <InfoCircleOutlined style={{ color: '#8c8c8c', fontSize: 12, marginLeft: 4 }} />
                         </Tooltip>
                       </span>
-                    ), 
-                    value: 'upload' 
+                    ),
+                    value: 'upload'
                   }
                 ]}
               />
-              
-              {/* 上传模式内容 */}
+
+              {/* 上传模式 */}
               {artSourceMode === 'upload' && (
                 <div style={{ marginTop: 12 }}>
                   <Upload
@@ -387,60 +356,60 @@ function App() {
                   )}
                 </div>
               )}
-              
-              {/* 选择模式内容 */}
+
+              {/* 选择模式 */}
               {artSourceMode === 'select' && (
                 <div style={{ marginTop: 12 }}>
                   <Row gutter={[12, 12]}>
                     <Col span={8}>
-                  <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>职业</label>
-                  <Select
-                    style={{ width: '100%' }}
-                    placeholder="选择职业"
-                    value={selectedProfession || undefined}
-                    onChange={handleProfessionChange}
-                    loading={loading}
-                  >
-                    {professions.map(prof => (
-                      <Option key={prof} value={prof}>{prof}</Option>
-                    ))}
-                  </Select>
-                </Col>
-                <Col span={8}>
-                  <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>角色</label>
-                  <Select
-                    style={{ width: '100%' }}
-                    placeholder={selectedProfession ? '选择角色' : '请先选择职业'}
-                    value={selectedChar || undefined}
-                    onChange={handleCharChange}
-                    loading={loading}
-                    disabled={!selectedProfession}
-                    showSearch
-                    filterOption={(input, option) =>
-                      option.children.toLowerCase().includes(input.toLowerCase())
-                    }
-                  >
-                    {availableChars.map(char => (
-                      <Option key={char} value={char}>{char}</Option>
-                    ))}
-                  </Select>
-                </Col>
-                <Col span={8}>
-                  <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>立绘</label>
-                  <Select
-                    style={{ width: '100%' }}
-                    placeholder={selectedChar ? '选择立绘' : '请先选择角色'}
-                    value={selectedSkin || undefined}
-                    onChange={setSelectedSkin}
-                    loading={loading}
-                    disabled={!selectedChar}
-                  >
-                    {availableSkins.map(skin => (
-                      <Option key={skin.code} value={skin.code}>{skin.name}</Option>
-                    ))}
-                  </Select>
-                </Col>
-              </Row>
+                      <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>职业</label>
+                      <Select
+                        style={{ width: '100%' }}
+                        placeholder="选择职业"
+                        value={selectedProfession || undefined}
+                        onChange={handleProfessionChange}
+                        loading={loading}
+                      >
+                        {professions.map(prof => (
+                          <Option key={prof} value={prof}>{prof}</Option>
+                        ))}
+                      </Select>
+                    </Col>
+                    <Col span={8}>
+                      <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>角色</label>
+                      <Select
+                        style={{ width: '100%' }}
+                        placeholder={selectedProfession ? '选择角色' : '请先选择职业'}
+                        value={selectedChar || undefined}
+                        onChange={handleCharChange}
+                        loading={loading}
+                        disabled={!selectedProfession}
+                        showSearch
+                        filterOption={(input, option) =>
+                          option.children.toLowerCase().includes(input.toLowerCase())
+                        }
+                      >
+                        {availableChars.map(char => (
+                          <Option key={char} value={char}>{char}</Option>
+                        ))}
+                      </Select>
+                    </Col>
+                    <Col span={8}>
+                      <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>立绘</label>
+                      <Select
+                        style={{ width: '100%' }}
+                        placeholder={selectedChar ? '选择立绘' : '请先选择角色'}
+                        value={selectedSkin || undefined}
+                        onChange={setSelectedSkin}
+                        loading={loading}
+                        disabled={!selectedChar}
+                      >
+                        {availableSkins.map(skin => (
+                          <Option key={skin.code} value={skin.code}>{codeToName(skin.code)}</Option>
+                        ))}
+                      </Select>
+                    </Col>
+                  </Row>
                 </div>
               )}
             </div>
@@ -448,23 +417,22 @@ function App() {
             {/* 势力Logo选择 */}
             <div style={{ marginBottom: 24 }}>
               <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>
-                势力Logo {selectedFaction === undefined && selectedChar && artSourceMode !== 'upload' && <span style={{ color: '#999', fontSize: 12 }}>(本家: {charInfoMap[selectedChar]?.faction || ''})</span>}
+                势力Logo {homeFactionLabel && <span style={{ color: '#999', fontSize: 12 }}>({homeFactionLabel})</span>}
               </label>
               <Select
                 style={{ width: '100%' }}
                 placeholder="选择势力Logo（默认本家）"
-                value={selectedFaction || undefined}
-                onChange={setSelectedFaction}
+                value={factionSelectValue || undefined}
+                onChange={(val) => setSelectedFaction(val === '' ? '' : val)}
                 loading={loading}
                 allowClear
-                disabled={!selectedChar}
                 showSearch
                 filterOption={(input, option) =>
                   option.children.toLowerCase().includes(input.toLowerCase())
                 }
               >
                 <Option value="">(无logo)</Option>
-                {factionList.map(faction => (
+                {factions.map(faction => (
                   <Option key={faction} value={faction}>{faction}</Option>
                 ))}
               </Select>
@@ -476,14 +444,7 @@ function App() {
                 <label style={{ fontWeight: 500 }}>立绘图片大小</label>
                 <span style={{ color: '#8c8c8c' }}>{charScale.toFixed(1)}</span>
               </div>
-              <Slider
-                min={0.5}
-                max={2}
-                step={0.1}
-                value={charScale}
-                onChange={setCharScale}
-                disabled={!selectedSkin}
-              />
+              <Slider min={0.5} max={2} step={0.1} value={charScale} onChange={setCharScale} disabled={!selectedSkin} />
             </div>
 
             {/* 立绘位置 */}
@@ -492,14 +453,7 @@ function App() {
                 <label style={{ fontWeight: 500 }}>立绘图片位置</label>
                 <span style={{ color: '#8c8c8c' }}>{(charPos * 100).toFixed(0)}%</span>
               </div>
-              <Slider
-                min={0.3}
-                max={0.7}
-                step={0.01}
-                value={charPos}
-                onChange={setCharPos}
-                disabled={!selectedSkin}
-              />
+              <Slider min={0.3} max={0.7} step={0.01} value={charPos} onChange={setCharPos} disabled={!selectedSkin} />
             </div>
 
             {/* Logo倍率 */}
@@ -508,14 +462,7 @@ function App() {
                 <label style={{ fontWeight: 500 }}>Logo大小</label>
                 <span style={{ color: '#8c8c8c' }}>{logoScale.toFixed(1)}</span>
               </div>
-              <Slider
-                min={0.5}
-                max={2}
-                step={0.1}
-                value={logoScale}
-                onChange={setLogoScale}
-                disabled={!selectedSkin}
-              />
+              <Slider min={0.5} max={2} step={0.1} value={logoScale} onChange={setLogoScale} disabled={!selectedSkin} />
             </div>
 
             {/* 输出质量 */}
@@ -528,12 +475,7 @@ function App() {
                   </Tooltip>
                 </Space>
               </label>
-              <Radio.Group
-                value={outputQuality}
-                onChange={(e) => setOutputQuality(e.target.value)}
-                optionType="button"
-                buttonStyle="solid"
-              >
+              <Radio.Group value={outputQuality} onChange={(e) => setOutputQuality(e.target.value)} optionType="button" buttonStyle="solid">
                 <Radio.Button value="4K">4K</Radio.Button>
                 <Radio.Button value="2K">2K</Radio.Button>
                 <Radio.Button value="1080p">1080p</Radio.Button>
@@ -544,25 +486,13 @@ function App() {
             <Row gutter={[12, 12]}>
               <Col span={12}>
                 <Tooltip title="重置范围：立绘来源、立绘大小/位置、Logo大小、输出质量">
-                  <Button
-                    icon={<ReloadOutlined />}
-                    onClick={handleReset}
-                    disabled={!selectedSkin}
-                    block
-                  >
+                  <Button icon={<ReloadOutlined />} onClick={handleReset} disabled={!selectedSkin} block>
                     重置
                   </Button>
                 </Tooltip>
               </Col>
               <Col span={12}>
-                <Button
-                  type="primary"
-                  icon={<DownloadOutlined />}
-                  onClick={handleDownload}
-                  loading={loading}
-                  disabled={!previewUrl}
-                  block
-                >
+                <Button type="primary" icon={<DownloadOutlined />} onClick={handleDownload} loading={loading} disabled={!previewUrl} block>
                   下载
                 </Button>
               </Col>
@@ -573,21 +503,13 @@ function App() {
         <Col xs={24} md={16}>
           <Card title="预览" loading={loading}>
             <div style={{ textAlign: 'center' }}>
-              {/* 隐藏的canvas用于绘制 */}
-              <canvas
-                ref={canvasRef}
-                style={{ display: 'none' }}
-              />
-              {/* 用Image显示合成结果 */}
+              <canvas ref={canvasRef} style={{ display: 'none' }} />
               {previewUrl ? (
                 <AntImage
                   src={previewUrl}
                   alt="合成预览"
                   style={{ maxWidth: '100%', borderRadius: 8, border: '1px solid #f0f0f0', cursor: 'pointer' }}
-                  preview={{
-                    src: previewUrl,
-                    mask: '点击查看大图'
-                  }}
+                  preview={{ src: previewUrl, mask: '点击查看大图' }}
                 />
               ) : (
                 <div style={{ height: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999' }}>
@@ -600,17 +522,10 @@ function App() {
       </Row>
 
       {/* 页脚 */}
-      <footer style={{ 
-        marginTop: 'auto',
-        padding: '16px', 
-        background: '#fafafa',
-        borderTop: '1px solid #f0f0f0'
-      }}>
+      <footer style={{ marginTop: 'auto', padding: '16px', background: '#fafafa', borderTop: '1px solid #f0f0f0' }}>
         <Row justify="space-between" align="middle">
           <Col>
-            <div style={{ fontSize: 14, color: '#8c8c8c' }}>
-              © 2026 ArkCharArt
-            </div>
+            <div style={{ fontSize: 14, color: '#8c8c8c' }}>© 2026 ArkCharArt</div>
           </Col>
           <Col>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
