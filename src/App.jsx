@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Select, Button, Card, Row, Col, Slider, Image as AntImage, message, Upload, Radio, Tooltip, Space } from 'antd'
+import { Select, Button, Card, Row, Col, Slider, Image as AntImage, message, Upload, Radio, Tooltip, Space, Segmented } from 'antd'
 import { DownloadOutlined, ReloadOutlined, UploadOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import { composeImage } from './lib/composeImage'
 import { BG_FILENAME } from './config'
@@ -28,6 +28,9 @@ function App() {
   
   // 输出质量设置: 4K | 2K | 1080p
   const [outputQuality, setOutputQuality] = useState('4K')
+  
+  // 立绘来源模式: 'upload' | 'select'
+  const [artSourceMode, setArtSourceMode] = useState('select')
   
   // 用户上传的立绘列表和当前选中的上传图
   const [uploadedImages, setUploadedImages] = useState(() => {
@@ -209,21 +212,17 @@ function App() {
       charImage = `chararts/${artFile}`
     }
     
-    // 获取阵营
-    let faction
-    if (selectedChar && charInfoMap[selectedChar]) {
-      faction = selectedFaction || charInfoMap[selectedChar].faction
-    } else if (selectedFaction) {
-      faction = selectedFaction
-    } else {
-      message.error('请选择角色或阵营')
-      return
-    }
-    
-    const logoFile = factionLogoMap[faction]
-    if (!logoFile) {
-      message.error(`未找到势力"${faction}"的图标`)
-      return
+    // 获取阵营Logo（空字符串表示无logo）
+    let logoPath = null
+    if (selectedFaction !== '') {
+      // 用户选择了特定阵营（包括本家）
+      const faction = selectedFaction || (selectedChar && charInfoMap[selectedChar]?.faction)
+      if (faction) {
+        const logoFile = factionLogoMap[faction]
+        if (logoFile) {
+          logoPath = `logos/${logoFile}`
+        }
+      }
     }
 
     setLoading(true)
@@ -232,7 +231,7 @@ function App() {
         canvas,
         BG_FILENAME,
         charImage,
-        `logos/${logoFile}`,
+        logoPath,
         { charScale, charPos, logoScale }
       )
       // 生成图片URL用于显示
@@ -309,14 +308,14 @@ function App() {
     setCharScale(1)
     setCharPos(0.5)
     setLogoScale(1)
-    setSelectedFaction('')
     setSelectedUploadedImage(null)
     setOutputQuality('4K')
+    setArtSourceMode('select')
     message.success('参数已重置')
   }
 
   return (
-    <div style={{ padding: '16px 24px', maxWidth: 1200, margin: '0 auto', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ padding: '16px 24px', maxWidth: 1800, margin: '0 auto', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <h1 style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <img src="/icon.png" alt="" style={{ width: 40, height: 40 }} />
         明日方舟立绘合成工具
@@ -325,19 +324,45 @@ function App() {
       <Row gutter={[24, 24]}>
         <Col xs={24} md={8}>
           <Card title="参数面板">
-            {/* 用户上传立绘 */}
+            {/* 立绘来源选择 */}
             <div style={{ marginBottom: 24 }}>
               <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>
-                <Space>
-                  自定义立绘
-                  <Tooltip title="上传图片列表将保持，直到你关闭本页面">
-                    <InfoCircleOutlined style={{ color: '#8c8c8c', fontSize: 14 }} />
-                  </Tooltip>
-                  {selectedUploadedImage && <span style={{ color: '#52c41a', fontSize: 12 }}>已选择</span>}
-                </Space>
+                立绘来源
               </label>
-              <Row gutter={[8, 8]}>
-                <Col flex="auto">
+              <Segmented
+                block
+                value={artSourceMode}
+                onChange={(value) => {
+                  setArtSourceMode(value)
+                  if (value === 'upload') {
+                    // 切换到上传模式：如果有上传图片则选最后一个
+                    if (uploadedImages.length > 0) {
+                      setSelectedUploadedImage(uploadedImages[uploadedImages.length - 1].id)
+                    }
+                  } else {
+                    // 切换到选择模式：停用自选
+                    setSelectedUploadedImage(null)
+                  }
+                }}
+                options={[
+                  { label: '选择立绘', value: 'select' },
+                  { 
+                    label: (
+                      <span>
+                        上传图片
+                        <Tooltip title={<span>你可以访问<a href="https://prts.wiki/w/%E5%B9%B2%E5%91%98%E4%B8%80%E8%A7%88" target="_blank" rel="noopener noreferrer" style={{ color: '#69c0ff' }}>PRTS干员一览</a>寻找干员资料，切换立绘/时装后下载使用<br/>上传的图片列表将保持，直到关闭页面</span>}>
+                          <InfoCircleOutlined style={{ color: '#8c8c8c', fontSize: 12, marginLeft: 4 }} />
+                        </Tooltip>
+                      </span>
+                    ), 
+                    value: 'upload' 
+                  }
+                ]}
+              />
+              
+              {/* 上传模式内容 */}
+              {artSourceMode === 'upload' && (
+                <div style={{ marginTop: 12 }}>
                   <Upload
                     accept="image/*"
                     showUploadList={false}
@@ -348,36 +373,26 @@ function App() {
                       上传立绘图
                     </Button>
                   </Upload>
-                </Col>
-                {selectedUploadedImage && (
-                  <Col flex="90px">
-                    <Button 
-                      onClick={() => setSelectedUploadedImage(null)}
-                      block
+                  {uploadedImages.length > 0 && (
+                    <Select
+                      style={{ width: '100%', marginTop: 8 }}
+                      placeholder="选择已上传的立绘"
+                      value={selectedUploadedImage || undefined}
+                      onChange={setSelectedUploadedImage}
                     >
-                      停用自选
-                    </Button>
-                  </Col>
-                )}
-              </Row>
-              {uploadedImages.length > 0 && (
-                <Select
-                  style={{ width: '100%', marginTop: 8 }}
-                  placeholder="选择已上传的立绘"
-                  value={selectedUploadedImage || undefined}
-                  onChange={setSelectedUploadedImage}
-                >
-                  {uploadedImages.map(img => (
-                    <Option key={img.id} value={img.id}>{img.name}</Option>
-                  ))}
-                </Select>
+                      {uploadedImages.map(img => (
+                        <Option key={img.id} value={img.id}>{img.name}</Option>
+                      ))}
+                    </Select>
+                  )}
+                </div>
               )}
-            </div>
-
-            {/* 三级联选：职业、角色、皮肤 */}
-            <div style={{ marginBottom: 24 }}>
-              <Row gutter={[12, 12]}>
-                <Col span={8}>
+              
+              {/* 选择模式内容 */}
+              {artSourceMode === 'select' && (
+                <div style={{ marginTop: 12 }}>
+                  <Row gutter={[12, 12]}>
+                    <Col span={8}>
                   <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>职业</label>
                   <Select
                     style={{ width: '100%' }}
@@ -426,16 +441,18 @@ function App() {
                   </Select>
                 </Col>
               </Row>
+                </div>
+              )}
             </div>
 
-            {/* 阵营Logo选择 */}
+            {/* 势力Logo选择 */}
             <div style={{ marginBottom: 24 }}>
               <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>
-                阵营Logo {selectedFaction === '' && selectedChar && <span style={{ color: '#999', fontSize: 12 }}>(默认: {charInfoMap[selectedChar]?.faction || ''})</span>}
+                势力Logo {selectedFaction === undefined && selectedChar && artSourceMode !== 'upload' && <span style={{ color: '#999', fontSize: 12 }}>(本家: {charInfoMap[selectedChar]?.faction || ''})</span>}
               </label>
               <Select
                 style={{ width: '100%' }}
-                placeholder="选择阵营Logo（默认本家）"
+                placeholder="选择势力Logo（默认本家）"
                 value={selectedFaction || undefined}
                 onChange={setSelectedFaction}
                 loading={loading}
@@ -446,6 +463,7 @@ function App() {
                   option.children.toLowerCase().includes(input.toLowerCase())
                 }
               >
+                <Option value="">(无logo)</Option>
                 {factionList.map(faction => (
                   <Option key={faction} value={faction}>{faction}</Option>
                 ))}
@@ -525,14 +543,16 @@ function App() {
             {/* 操作按钮 */}
             <Row gutter={[12, 12]}>
               <Col span={12}>
-                <Button
-                  icon={<ReloadOutlined />}
-                  onClick={handleReset}
-                  disabled={!selectedSkin}
-                  block
-                >
-                  重置
-                </Button>
+                <Tooltip title="重置范围：立绘来源、立绘大小/位置、Logo大小、输出质量">
+                  <Button
+                    icon={<ReloadOutlined />}
+                    onClick={handleReset}
+                    disabled={!selectedSkin}
+                    block
+                  >
+                    重置
+                  </Button>
+                </Tooltip>
               </Col>
               <Col span={12}>
                 <Button
@@ -594,19 +614,31 @@ function App() {
           </Col>
           <Col>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-              <a href="https://github.com/3plus10i/arkcharart" target="_blank" rel="noopener noreferrer">
-                <img src="github-favicon.svg" alt="GitHub" style={{ width: 16, height: 16, display: 'block' }} />
-              </a>
-              <a href="https://blog.3plus10i.top" target="_blank" rel="noopener noreferrer">
-                <img src="blog-icon.ico" alt="博客" style={{ width: 16, height: 16, display: 'block' }} />
-              </a>
+              <span style={{ fontSize: 14, color: '#8c8c8c' }}>
+                你可能还需要…<a href="https://imgpress.3plus10i.top" target="_blank" rel="noopener noreferrer" style={{ color: '#1890ff' }}>ImgPress快捷图片压缩</a>
+              </span>
               <span style={{ color: '#d9d9d9' }}>|</span>
-              <a href="https://ak.hypergryph.com/" target="_blank" rel="noopener noreferrer">
-                <img src="arknights-favicon.ico" alt="明日方舟" style={{ width: 16, height: 16, display: 'block' }} />
-              </a>
-              <a href="https://prts.wiki" target="_blank" rel="noopener noreferrer">
-                <img src="prts-favicon.ico" alt="PRTS" style={{ width: 16, height: 16, display: 'block' }} />
-              </a>
+              <Tooltip title="项目主页">
+                <a href="https://github.com/3plus10i/arkcharart" target="_blank" rel="noopener noreferrer">
+                  <img src="github-favicon.svg" alt="GitHub" style={{ width: 16, height: 16, display: 'block' }} />
+                </a>
+              </Tooltip>
+              <Tooltip title="作者主站">
+                <a href="https://blog.3plus10i.top" target="_blank" rel="noopener noreferrer">
+                  <img src="blog-icon.ico" alt="博客" style={{ width: 16, height: 16, display: 'block' }} />
+                </a>
+              </Tooltip>
+              <span style={{ color: '#d9d9d9' }}>|</span>
+              <Tooltip title="鹰角网络 - 明日方舟">
+                <a href="https://ak.hypergryph.com/" target="_blank" rel="noopener noreferrer">
+                  <img src="arknights-favicon.ico" alt="明日方舟" style={{ width: 16, height: 16, display: 'block' }} />
+                </a>
+              </Tooltip>
+              <Tooltip title="PRTS - Wiki">
+                <a href="https://prts.wiki" target="_blank" rel="noopener noreferrer">
+                  <img src="prts-favicon.ico" alt="PRTS" style={{ width: 16, height: 16, display: 'block' }} />
+                </a>
+              </Tooltip>
             </div>
           </Col>
         </Row>

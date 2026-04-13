@@ -99,12 +99,15 @@ export async function composeImage(canvas, baseImagePath, charImagePath, logoIma
   ctx.clearRect(0, 0, canvasWidth, canvasHeight)
 
   try {
-    // 1. 加载所有图片
-    const [baseImg, charImg, logoImg] = await Promise.all([
+    // 1. 加载图片（logo可选）
+    const imagesToLoad = [
       loadImage(baseImagePath),
-      loadImage(charImagePath),
-      loadImage(logoImagePath)
-    ])
+      loadImage(charImagePath)
+    ]
+    if (logoImagePath) {
+      imagesToLoad.push(loadImage(logoImagePath))
+    }
+    const [baseImg, charImg, logoImg] = await Promise.all(imagesToLoad)
 
     // 2. 绘制底图
     ctx.drawImage(baseImg, 0, 0, canvasWidth, canvasHeight)
@@ -116,25 +119,27 @@ export async function composeImage(canvas, baseImagePath, charImagePath, logoIma
     const bgCharY = canvasHeight * DEFAULT_BG_CHAR_Y - bgCharSize.height / 2
     ctx.drawImage(charImg, bgCharX, bgCharY, bgCharSize.width, bgCharSize.height)
 
-    // 4. 绘制阵营图标（图层3）
-    const logoHeight = canvasHeight * DEFAULT_LOGO_HEIGHT_SCALE * logoScale
-    const logoSize = calculateScaledSize(logoImg, logoHeight)
-    const logoX = canvasWidth * DEFAULT_LOGO_X - logoSize.width / 2
-    const logoY = canvasHeight * DEFAULT_LOGO_Y - logoSize.height / 2
-    
-    // 设置阴影效果
-    if (LOGO_SHADOW_INTENSITY > 0) {
-      ctx.shadowBlur = LOGO_SHADOW_BLUR * LOGO_SHADOW_INTENSITY
-      ctx.shadowColor = LOGO_SHADOW_COLOR
-      ctx.shadowOffsetX = 0
-      ctx.shadowOffsetY = 0
+    // 4. 绘制阵营图标（图层3）- 仅在提供logo时绘制
+    if (logoImg) {
+      const logoHeight = canvasHeight * DEFAULT_LOGO_HEIGHT_SCALE * logoScale
+      const logoSize = calculateScaledSize(logoImg, logoHeight)
+      const logoX = canvasWidth * DEFAULT_LOGO_X - logoSize.width / 2
+      const logoY = canvasHeight * DEFAULT_LOGO_Y - logoSize.height / 2
+      
+      // 设置阴影效果
+      if (LOGO_SHADOW_INTENSITY > 0) {
+        ctx.shadowBlur = LOGO_SHADOW_BLUR * LOGO_SHADOW_INTENSITY
+        ctx.shadowColor = LOGO_SHADOW_COLOR
+        ctx.shadowOffsetX = 0
+        ctx.shadowOffsetY = 0
+      }
+      
+      // 绘制Logo
+      ctx.drawImage(logoImg, logoX, logoY, logoSize.width, logoSize.height)
+      
+      // 重置阴影设置
+      ctx.shadowBlur = 0
     }
-    
-    // 绘制Logo
-    ctx.drawImage(logoImg, logoX, logoY, logoSize.width, logoSize.height)
-    
-    // 重置阴影设置
-    ctx.shadowBlur = 0
 
     // 5. 绘制白色渐变遮罩（图层4）
     const gradient = ctx.createLinearGradient(0, 0, canvasWidth, 0)
