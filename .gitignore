@@ -1,7 +1,7 @@
 .dev/
 subproject/
 .code*/
-dist
+dist/
 .vscode
 node_modules
 package-lock.json
