@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Select, Button, Card, Row, Col, Slider, Image, message } from 'antd'
-import { DownloadOutlined, ReloadOutlined } from '@ant-design/icons'
+import { Select, Button, Card, Row, Col, Slider, Image as AntImage, message, Upload } from 'antd'
+import { DownloadOutlined, ReloadOutlined, UploadOutlined } from '@ant-design/icons'
 import { composeImage, CANVAS_WIDTH, CANVAS_HEIGHT } from './lib/composeImage'
 import { charInfoMap, factionLogoMap, professionCharMap, charSkinsMap } from './data/mappings'
 
@@ -24,6 +24,14 @@ function App() {
   const [charPos, setCharPos] = useState(0.5)
   const [logoScale, setLogoScale] = useState(1)
   const [selectedFaction, setSelectedFaction] = useState('')
+  
+  // 用户上传的立绘列表和当前选中的上传图
+  const [uploadedImages, setUploadedImages] = useState(() => {
+    // 从 sessionStorage 恢复
+    const saved = sessionStorage.getItem('arkcharart_uploaded')
+    return saved ? JSON.parse(saved) : []
+  })
+  const [selectedUploadedImage, setSelectedUploadedImage] = useState(null)
   
   const canvasRef = useRef(null)
 
@@ -128,20 +136,79 @@ function App() {
     return skin ? skin.file : null
   }, [selectedChar, selectedSkin])
 
+  // 保存上传图片列表到 sessionStorage
+  const saveUploadedImages = (images) => {
+    sessionStorage.setItem('arkcharart_uploaded', JSON.stringify(images))
+  }
+
+  // 处理用户上传立绘
+  const handleFileChange = ({ file }) => {
+    if (!file || !file.originFileObj) return
+    
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const dataUrl = e.target.result
+      const img = new window.Image()
+      img.onload = () => {
+        // 添加到上传列表
+        const newImage = {
+          id: Date.now().toString(),
+          name: file.name,
+          dataUrl: dataUrl,
+          width: img.width,
+          height: img.height
+        }
+        const newList = [...uploadedImages, newImage]
+        setUploadedImages(newList)
+        saveUploadedImages(newList)
+        setSelectedUploadedImage(newImage.id)
+        // 默认选择罗德岛logo
+        if (!selectedFaction) {
+          setSelectedFaction('罗德岛')
+        }
+        message.success('立绘上传成功')
+      }
+      img.onerror = () => {
+        message.error('图片加载失败')
+      }
+      img.src = dataUrl
+    }
+    reader.readAsDataURL(file.originFileObj)
+  }
+
+  // 获取当前选中的上传图片对象
+  const getSelectedUploadedImageObj = () => {
+    return uploadedImages.find(img => img.id === selectedUploadedImage)
+  }
+
   // 合成图片
   const generateImage = useCallback(async () => {
-    const artFile = getArtFile()
-    if (!artFile || !canvasRef.current) return
+    if (!canvasRef.current) return
 
     const canvas = canvasRef.current
-    const charInfo = charInfoMap[selectedChar]
-    if (!charInfo) {
-      message.error(`未找到角色"${selectedChar}"的信息`)
+    
+    // 确定立绘来源：优先使用用户上传的图片
+    let charImage
+    const uploadedImgObj = getSelectedUploadedImageObj()
+    if (uploadedImgObj) {
+      charImage = uploadedImgObj.dataUrl
+    } else {
+      const artFile = getArtFile()
+      if (!artFile) return
+      charImage = `assets/chararts/${artFile}`
+    }
+    
+    // 获取阵营
+    let faction
+    if (selectedChar && charInfoMap[selectedChar]) {
+      faction = selectedFaction || charInfoMap[selectedChar].faction
+    } else if (selectedFaction) {
+      faction = selectedFaction
+    } else {
+      message.error('请选择角色或阵营')
       return
     }
-
-    // 使用用户选择的阵营，或默认使用角色本家阵营
-    const faction = selectedFaction || charInfo.faction
+    
     const logoFile = factionLogoMap[faction]
     if (!logoFile) {
       message.error(`未找到势力"${faction}"的图标`)
@@ -153,7 +220,7 @@ function App() {
       await composeImage(
         canvas,
         'assets/bg.png',
-        `assets/chararts/${artFile}`,
+        charImage,
         `assets/logos/${logoFile}`,
         { charScale, charPos, logoScale }
       )
@@ -166,7 +233,7 @@ function App() {
     } finally {
       setLoading(false)
     }
-  }, [selectedChar, selectedSkin, selectedFaction, charScale, charPos, logoScale, getArtFile])
+  }, [selectedChar, selectedSkin, selectedFaction, charScale, charPos, logoScale, getArtFile, selectedUploadedImage, uploadedImages])
 
   // 组件挂载后执行首次合成
   useEffect(() => {
@@ -195,7 +262,17 @@ function App() {
     }
     const link = document.createElement('a')
     link.href = previewUrl
-    link.download = `明日方舟_${selectedChar}_${selectedSkin}.png`
+    // 确定文件名
+    let filename
+    const uploadedImgObj = getSelectedUploadedImageObj()
+    if (uploadedImgObj) {
+      filename = `自定义图片_${uploadedImgObj.name}`
+    } else if (selectedChar && selectedSkin) {
+      filename = `明日方舟_${selectedChar}_${selectedSkin}.png`
+    } else {
+      filename = '合成.png'
+    }
+    link.download = filename
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -208,6 +285,7 @@ function App() {
     setCharPos(0.5)
     setLogoScale(1)
     setSelectedFaction('')
+    setSelectedUploadedImage(null)
     message.success('参数已重置')
   }
 
@@ -221,6 +299,50 @@ function App() {
       <Row gutter={[24, 24]}>
         <Col xs={24} md={8}>
           <Card title="参数面板">
+            {/* 用户上传立绘 */}
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>
+                自定义立绘
+                {selectedUploadedImage && <span style={{ color: '#52c41a', fontSize: 12, marginLeft: 8 }}>已选择</span>}
+              </label>
+              <Row gutter={[8, 8]}>
+                <Col flex="auto">
+                  <Upload
+                    accept="image/*"
+                    showUploadList={false}
+                    onChange={handleFileChange}
+                    customRequest={() => {}}
+                  >
+                    <Button icon={<UploadOutlined />} block>
+                      上传立绘图
+                    </Button>
+                  </Upload>
+                </Col>
+                {selectedUploadedImage && (
+                  <Col flex="90px">
+                    <Button 
+                      onClick={() => setSelectedUploadedImage(null)}
+                      block
+                    >
+                      停用自选
+                    </Button>
+                  </Col>
+                )}
+              </Row>
+              {uploadedImages.length > 0 && (
+                <Select
+                  style={{ width: '100%', marginTop: 8 }}
+                  placeholder="选择已上传的立绘"
+                  value={selectedUploadedImage || undefined}
+                  onChange={setSelectedUploadedImage}
+                >
+                  {uploadedImages.map(img => (
+                    <Option key={img.id} value={img.id}>{img.name}</Option>
+                  ))}
+                </Select>
+              )}
+            </div>
+
             {/* 三级联选：职业、角色、皮肤 */}
             <div style={{ marginBottom: 24 }}>
               <Row gutter={[12, 12]}>
@@ -384,7 +506,7 @@ function App() {
               />
               {/* 用Image显示合成结果 */}
               {previewUrl ? (
-                <Image
+                <AntImage
                   src={previewUrl}
                   alt="合成预览"
                   style={{ maxWidth: '100%', borderRadius: 8, border: '1px solid #f0f0f0', cursor: 'pointer' }}

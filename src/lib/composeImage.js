@@ -54,8 +54,12 @@ const DEFAULT_CENTER_CHAR_HEIGHT_SCALE = 1.0
 
 /**
  * 加载图片辅助函数
+ * 支持传入路径字符串或已有的 Image 对象
  */
 function loadImage(src) {
+  if (src instanceof HTMLImageElement) {
+    return Promise.resolve(src)
+  }
   return new Promise((resolve, reject) => {
     const img = new Image()
     img.onload = () => resolve(img)
