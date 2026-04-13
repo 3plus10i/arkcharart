@@ -1,76 +1,35 @@
-# 立绘合成工具
+# 明日方舟立绘合成工具
 
-一个静态前端工具，用于将明日方舟角色立绘与阵营图标合成为博客题图。
+静态前端工具，将角色立绘与阵营图标合成为博客题图。
 
-## 功能
+## 使用
 
- 选择角色 → 自动合成 → 下载PNG
-
-合成效果：
-1. 底图 (6800:4000)
-2. 背景大立绘 (位置: 70%,50%，高度: 底图高度的120%)
-3. 阵营图标 (位置: 20%,20%，高度: 底图高度的50%)
-4. 白色遮罩 (透明度 0.5)
-5. 中心人物立绘 (位置: 50%,50%，高度: 底图高度)
-
-## 使用方式
-
-### 在线使用
-直接双击 `dist/index.html` 在浏览器中打开。
-
-### 本地开发
 ```bash
-npm install          # 安装依赖
-npm run generate-data # 生成数据映射
-npm run build        # 构建项目
+npm install
+npm run dev      # 开发
+npm run build    # 构建
 ```
 
-构建后，所有文件在 `dist` 目录，可独立部署。
+## 添加立绘
 
-## 添加新的立绘
-
-1. 将立绘文件放入 `assets/chararts/` 目录
-   - 命名格式：`立绘_角色名_变体.png`，例如 `立绘_蓝毒_2.png`
-   - 角色名应与 `charsinfo.csv` 中的“代号”或“中文名”对应
-
-2. 重新生成数据映射：
-   ```bash
-   npm run generate-data
-   ```
-
-3. 重新构建（如果已构建过）或直接刷新页面
+1. 将立绘放入 `assets/chararts/`
+2. 命名格式：`立绘_角色名_变体.png`
+3. 运行 `npm run generate-data`
 
 ## 项目结构
 
 ```
-├── assets/                  # 静态资源
-│   ├── chararts/           # 角色立绘
-│   ├── logos/              # 阵营图标
-│   ├── charsinfo.csv       # 角色信息表
-│   └── 势力logo对照表.csv  # 势力-图标映射
-├── src/
-│   ├── lib/composeImage.js # Canvas合成核心
-│   ├── data/              # 生成的JS数据模块
-│   └── App.jsx            # 主界面
-├── scripts/
-│   └── generate-data.js   # 数据构建脚本
-└── dist/                  # 构建输出
+assets/
+  chararts/      # 角色立绘
+  logos/         # 阵营图标
+  charsinfo.csv  # 角色信息
+src/
+  lib/composeImage.js  # Canvas合成
+  App.jsx              # 主界面
+scripts/
+  generate-data.js     # 数据生成
 ```
 
 ## 技术栈
 
-- React 18 + Vite
-- Ant Design 5 UI组件库
-- Canvas 2D API
-- ES6模块（无运行时数据加载，纯静态）
-
-## 注意事项
-
-- 当前仅支持已存在的立绘文件（现有：蓝毒精二立绘）
-- 势力图标库完整（44个阵营）
-- 角色信息完整（412个干员）
-- 如需更新角色数据，替换 `charsinfo.csv` 后重新运行生成脚本
-
-## 许可证
-
-MIT
+React 18 + Vite + Ant Design + Canvas 2D
