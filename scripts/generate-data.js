@@ -142,7 +142,6 @@ console.log(`解析出 ${Object.keys(charSkinsMap).length} 个角色的皮肤信
 
 // 4. 生成mappings.js
 const mappingsContent = `// 自动生成的角色信息映射表
-// 生成时间: ${new Date().toISOString()}
 
 export const charInfoMap = ${JSON.stringify(charInfoMap, null, 2)}
 
@@ -160,7 +159,6 @@ console.log(`已生成: src/data/mappings.js`)
 
 // 5. 生成charArts.js
 const charArtsContent = `// 自动生成的立绘文件列表
-// 生成时间: ${new Date().toISOString()}
 
 export const charArts = ${JSON.stringify(charArts, null, 2)}
 `

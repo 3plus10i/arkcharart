@@ -424,7 +424,7 @@ function App() {
             {/* 立绘倍率 */}
             <div style={{ marginBottom: 24 }}>
               <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>
-                图片倍率: {charScale.toFixed(1)}
+                立绘图片大小: {charScale.toFixed(1)}
               </label>
               <Slider
                 min={0.5}
@@ -439,7 +439,7 @@ function App() {
             {/* 立绘位置 */}
             <div style={{ marginBottom: 24 }}>
               <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>
-                图片位置: {(charPos * 100).toFixed(0)}%
+                立绘图片位置: {(charPos * 100).toFixed(0)}%
               </label>
               <Slider
                 min={0.3}

@@ -39,9 +39,9 @@ const LOGO_SHADOW_BLUR = 20
 const LOGO_SHADOW_COLOR = 'rgba(0, 0, 0, 0.5)'
 
 /** 白色遮罩左侧默认不透明度 */
-const DEFAULT_OVERLAY_ALPHA_LEFT = 0.3
+const DEFAULT_OVERLAY_ALPHA_LEFT = 0.5
 /** 白色遮罩右侧默认不透明度 */
-const DEFAULT_OVERLAY_ALPHA_RIGHT = 0.6
+const DEFAULT_OVERLAY_ALPHA_RIGHT = 0.7
 
 /** 中心立绘默认水平位置 (0-1) */
 const DEFAULT_CENTER_CHAR_X = 0.5
