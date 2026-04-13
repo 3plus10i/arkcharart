@@ -1,9 +1,12 @@
 // 自动生成的立绘文件列表
 
 export const charArts = [
+  "塔露拉_其他_整合运动_1.png",
+  "立绘_Mon3tr_1.png",
   "立绘_乌啾_2.png",
   "立绘_假日威龙陈_2.png",
   "立绘_凛视_2.png",
+  "立绘_凯尔希_skin2.png",
   "立绘_历阵锐枪芬_1.png",
   "立绘_塑心_1.png",
   "立绘_夜莺_2.png",
@@ -19,6 +22,7 @@ export const charArts = [
   "立绘_森蚺_skin1.png",
   "立绘_死芒_1.png",
   "立绘_浊心斯卡蒂_1.png",
+  "立绘_烛煌_1.png",
   "立绘_玛恩纳_1.png",
   "立绘_玛恩纳_2.png",
   "立绘_玛恩纳_skin1.png",
@@ -30,6 +34,9 @@ export const charArts = [
   "立绘_维什戴尔_skin2.png",
   "立绘_缄默德克萨斯_1.png",
   "立绘_老鲤_1.png",
+  "立绘_能天使_2.png",
+  "立绘_能天使_skin1.png",
+  "立绘_能天使_skin2.png",
   "立绘_艾拉_1.png",
   "立绘_荒芜拉普兰德_1.png",
   "立绘_蓝毒_2.png",

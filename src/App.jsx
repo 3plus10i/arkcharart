@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { Select, Button, Card, Row, Col, Slider, Image as AntImage, message, Upload, Radio, Tooltip, Space, Segmented } from 'antd'
+import { Select, Button, Card, Row, Col, Slider, Image as AntImage, message, Upload, Radio, Tooltip, Space, Segmented, Spin } from 'antd'
 import { DownloadOutlined, ReloadOutlined, UploadOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import { composeImage } from './lib/composeImage'
 import { BG_FILENAME } from './config'
@@ -65,12 +65,9 @@ function App() {
     if (isInitialized) return
     const defaultChar = '蓝毒'
     if (charMap[defaultChar] && charMap[defaultChar].length > 0) {
-      const info = charsInfo[defaultChar]
-      if (info) {
-        setSelectedProfession(info.profession)
-        setSelectedChar(defaultChar)
-        setSelectedSkin(charMap[defaultChar][0].code)
-      }
+      setSelectedProfession('全部')
+      setSelectedChar(defaultChar)
+      setSelectedSkin(charMap[defaultChar][0].code)
     }
     setIsInitialized(true)
   }, [isInitialized, charMap])
@@ -83,13 +80,22 @@ function App() {
     setSelectedFaction(null) // null表示"本家"
   }, [selectedChar, selectedSkin, artSourceMode])
 
+  // 职业下拉菜单选项：固定前两个 + 实际职业列表
+  const professionOptions = useMemo(() => {
+    // 过滤掉"其他"，因为它已作为固定选项存在
+    const realProfs = professions.filter(p => p !== '其他')
+    return ['全部', '其他', ...realProfs]
+  }, [professions])
+
   // 根据选择的职业获取角色列表
   const availableChars = useMemo(() => {
     if (!selectedProfession) return []
-    return artList
-      .filter(a => a.profession === selectedProfession)
+    const filtered = selectedProfession === '全部'
+      ? artList
+      : artList.filter(a => a.profession === selectedProfession)
+    return filtered
       .map(a => a.name)
-      .filter((v, i, arr) => arr.indexOf(v) === i) // 去重
+      .filter((v, i, arr) => arr.indexOf(v) === i)
       .sort()
   }, [selectedProfession, artList])
 
@@ -99,13 +105,15 @@ function App() {
     setSelectedFaction(null)
 
     if (profession) {
-      const chars = artList
-        .filter(a => a.profession === profession)
+      const filtered = profession === '全部'
+        ? artList
+        : artList.filter(a => a.profession === profession)
+      const chars = filtered
         .map(a => a.name)
         .filter((v, i, arr) => arr.indexOf(v) === i)
       if (chars.length > 0) {
-        setSelectedChar(chars[0])
-        const skins = charMap[chars[0]]
+        setSelectedChar(chars.sort()[0])
+        const skins = charMap[chars.sort()[0]]
         setSelectedSkin(skins && skins.length > 0 ? skins[0].code : '')
       } else {
         setSelectedChar('')
@@ -370,7 +378,7 @@ function App() {
                         onChange={handleProfessionChange}
                         loading={loading}
                       >
-                        {professions.map(prof => (
+                        {professionOptions.map(prof => (
                           <Option key={prof} value={prof}>{prof}</Option>
                         ))}
                       </Select>
@@ -379,7 +387,7 @@ function App() {
                       <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>角色</label>
                       <Select
                         style={{ width: '100%' }}
-                        placeholder={selectedProfession ? '选择角色' : '请先选择职业'}
+                        placeholder="选择角色"
                         value={selectedChar || undefined}
                         onChange={handleCharChange}
                         loading={loading}
@@ -501,8 +509,13 @@ function App() {
         </Col>
 
         <Col xs={24} md={16}>
-          <Card title="预览" loading={loading}>
-            <div style={{ textAlign: 'center' }}>
+          <Card title="预览">
+            <div style={{ textAlign: 'center', minHeight: 400, position: 'relative' }}>
+              {loading && (
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(245, 245, 245, 0.6)', zIndex: 1 }}>
+                  <Spin />
+                </div>
+              )}
               <canvas ref={canvasRef} style={{ display: 'none' }} />
               {previewUrl ? (
                 <AntImage
