@@ -76,6 +76,7 @@ function calculateScaledSize(img, targetHeight, maxWidth = null) {
  * @param {Object} options - 配置选项
  * @param {number} options.charScale - 立绘倍率 (0.5-2)
  * @param {number} options.charPos - 立绘水平位置 (0.3-0.7)
+ * @param {number} options.charYOffset - 立绘Y轴偏置 (0.3-0.7)
  * @param {number} options.logoScale - Logo倍率 (0.5-2)
  */
 export async function composeImage(canvas, baseImagePath, charImagePath, logoImagePath, options = {}) {
@@ -90,10 +91,12 @@ export async function composeImage(canvas, baseImagePath, charImagePath, logoIma
   // 解析选项
   const charScale = options.charScale ?? 1
   const charPos = options.charPos ?? 0.5
+  const charYOffset = options.charYOffset ?? 0.5
   const logoScale = options.logoScale ?? 1
   
   // 计算位置偏移量 (用户50%为基准，计算偏移)
   const posOffset = charPos - 0.5
+  const yOffset = charYOffset - 0.5
   
   // 清空Canvas
   ctx.clearRect(0, 0, canvasWidth, canvasHeight)
@@ -116,7 +119,7 @@ export async function composeImage(canvas, baseImagePath, charImagePath, logoIma
     const bgCharHeight = canvasHeight * DEFAULT_BG_CHAR_HEIGHT_SCALE * charScale
     const bgCharSize = calculateScaledSize(charImg, bgCharHeight)
     const bgCharX = canvasWidth * (DEFAULT_BG_CHAR_X + posOffset) - bgCharSize.width / 2
-    const bgCharY = canvasHeight * DEFAULT_BG_CHAR_Y - bgCharSize.height / 2
+    const bgCharY = canvasHeight * (DEFAULT_BG_CHAR_Y + yOffset) - bgCharSize.height / 2
     ctx.drawImage(charImg, bgCharX, bgCharY, bgCharSize.width, bgCharSize.height)
 
     // 4. 绘制阵营图标（图层3）- 仅在提供logo时绘制
@@ -152,7 +155,7 @@ export async function composeImage(canvas, baseImagePath, charImagePath, logoIma
     const centerCharHeight = canvasHeight * DEFAULT_CENTER_CHAR_HEIGHT_SCALE * charScale
     const centerCharSize = calculateScaledSize(charImg, centerCharHeight)
     const centerCharX = canvasWidth * (DEFAULT_CENTER_CHAR_X + posOffset) - centerCharSize.width / 2
-    const centerCharY = canvasHeight * DEFAULT_CENTER_CHAR_Y - centerCharSize.height / 2
+    const centerCharY = canvasHeight * (DEFAULT_CENTER_CHAR_Y + yOffset) - centerCharSize.height / 2
     ctx.drawImage(charImg, centerCharX, centerCharY, centerCharSize.width, centerCharSize.height)
 
     return true

@@ -31,6 +31,7 @@ function App() {
   // 参数状态
   const [charScale, setCharScale] = useState(1)
   const [charPos, setCharPos] = useState(0.5)
+  const [charYOffset, setCharYOffset] = useState(0.5)
   const [logoScale, setLogoScale] = useState(1)
   const [selectedFaction, setSelectedFaction] = useState(null) // null=本家, ''=无logo, 其他=指定势力
 
@@ -225,7 +226,7 @@ function App() {
 
     setLoading(true)
     try {
-      await composeImage(canvas, BG_FILENAME, charImage, logoPath, { charScale, charPos, logoScale })
+      await composeImage(canvas, BG_FILENAME, charImage, logoPath, { charScale, charPos, charYOffset, logoScale })
       const dataUrl = canvas.toDataURL('image/png')
       setPreviewUrl(dataUrl)
     } catch (err) {
@@ -234,7 +235,7 @@ function App() {
     } finally {
       setLoading(false)
     }
-  }, [selectedChar, selectedSkin, selectedFaction, homeFaction, charScale, charPos, logoScale, getArtFile, getSelectedUploadedImageObj, outputQuality])
+  }, [selectedChar, selectedSkin, selectedFaction, homeFaction, charScale, charPos, charYOffset, logoScale, getArtFile, getSelectedUploadedImageObj, outputQuality])
 
   // 首次合成
   useEffect(() => {
@@ -284,6 +285,7 @@ function App() {
   const handleReset = () => {
     setCharScale(1)
     setCharPos(0.5)
+    setCharYOffset(0.5)
     setLogoScale(1)
     setSelectedUploadedImage(null)
     setOutputQuality('4K')
@@ -459,10 +461,19 @@ function App() {
             {/* 立绘位置 */}
             <div style={{ marginBottom: 24 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                <label style={{ fontWeight: 500 }}>立绘图片位置</label>
+                <label style={{ fontWeight: 500 }}>立绘X轴位置</label>
                 <span style={{ color: '#8c8c8c' }}>{(charPos * 100).toFixed(0)}%</span>
               </div>
               <Slider min={0.3} max={0.7} step={0.01} value={charPos} onChange={setCharPos} disabled={!selectedSkin} />
+            </div>
+
+            {/* 立绘Y轴偏置 */}
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <label style={{ fontWeight: 500 }}>立绘Y轴位置</label>
+                <span style={{ color: '#8c8c8c' }}>{(charYOffset * 100).toFixed(0)}%</span>
+              </div>
+              <Slider min={0.3} max={0.7} step={0.01} value={charYOffset} onChange={setCharYOffset} disabled={!selectedSkin} />
             </div>
 
             {/* Logo倍率 */}
