@@ -77,19 +77,28 @@ let factionFiles = []
 
 if (fs.existsSync(logosDir)) {
   factionFiles = fs.readdirSync(logosDir)
-    .filter(file => file.toLowerCase().endsWith('.png'))
+    .filter(file => file.toLowerCase().endsWith('.png') || file.toLowerCase().endsWith('.svg'))
     .sort()
 } else {
   console.warn(`警告: logos目录不存在: ${logosDir}`)
   fs.mkdirSync(logosDir, { recursive: true })
 }
 
-// 存储的是不含.png后缀的文件名（即势力名）
-const factionList = factionFiles.map(f => f.replace(/\.png$/i, ''))
+// 存储的是不含后缀的文件名（即势力名），同时保留扩展名映射用于运行时查找
+const factionList = factionFiles.map(f => f.replace(/\.(png|svg)$/i, ''))
+const factionExtMap = {}
+factionFiles.forEach(f => {
+  const name = f.replace(/\.(png|svg)$/i, '')
+  const ext = f.match(/\.(png|svg)$/i)?.[1]?.toLowerCase() || 'png'
+  factionExtMap[name] = ext
+})
 
-const factionContent = `// 自动生成的势力logo文件列表（势力名=logo文件名，不含.png后缀）
+const factionContent = `// 自动生成的势力logo文件列表（势力名=logo文件名，不含后缀）
 
 export const factions = ${JSON.stringify(factionList, null, 2)}
+
+// 势力名→文件扩展名映射（用于构建logo路径时判断.png/.svg）
+export const factionExtMap = ${JSON.stringify(factionExtMap, null, 2)}
 `
 fs.writeFileSync(path.join(srcDataDir, 'faction.js'), factionContent)
 console.log(`已生成: src/data/faction.js (${factionList.length} 个势力)`)

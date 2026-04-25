@@ -35,14 +35,25 @@ export { CANVAS_WIDTH, CANVAS_HEIGHT }
  * 加载图片辅助函数
  * 支持传入路径字符串或已有的 Image 对象
  */
-function loadImage(src) {
+function loadImage(src, fallbackSrc) {
   if (src instanceof HTMLImageElement) {
     return Promise.resolve(src)
   }
   return new Promise((resolve, reject) => {
     const img = new Image()
+    img.crossOrigin = 'anonymous'
     img.onload = () => resolve(img)
-    img.onerror = (e) => reject(new Error(`加载图片失败: ${src}`))
+    img.onerror = () => {
+      if (fallbackSrc) {
+        // 远程加载失败，尝试本地回落
+        const fallbackImg = new Image()
+        fallbackImg.onload = () => resolve(fallbackImg)
+        fallbackImg.onerror = () => reject(new Error(`加载图片失败: ${src}，回落也失败: ${fallbackSrc}`))
+        fallbackImg.src = fallbackSrc
+      } else {
+        reject(new Error(`加载图片失败: ${src}`))
+      }
+    }
     img.src = src
   })
 }
@@ -105,7 +116,7 @@ export async function composeImage(canvas, baseImagePath, charImagePath, logoIma
     // 1. 加载图片（logo可选）
     const imagesToLoad = [
       loadImage(baseImagePath),
-      loadImage(charImagePath)
+      loadImage(charImagePath, options.charImageFallback)
     ]
     if (logoImagePath) {
       imagesToLoad.push(loadImage(logoImagePath))
