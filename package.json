@@ -4,9 +4,9 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "generate-data": "node scripts/generate-data.js",
-    "dev": "npm run generate-data && vite",
-    "build": "npm run generate-data && vite build",
+    "build-data": "python scripts/build_data.py",
+    "dev": "npm run build-data && vite",
+    "build": "npm run build-data && vite build",
     "preview": "vite preview"
   },
   "dependencies": {

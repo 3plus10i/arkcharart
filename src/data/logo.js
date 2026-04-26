@@ -1,6 +1,6 @@
-// 自动生成的势力logo文件列表（势力名=logo文件名，不含后缀）
+// 自动生成的logo文件列表（logo名=文件名，不含后缀）
 
-export const factions = [
+export const logos = [
   "Ave Mujica",
   "S.W.E.E.P.",
   "东",
@@ -51,8 +51,8 @@ export const factions = [
   "龙门近卫局"
 ]
 
-// 势力名→文件扩展名映射（用于构建logo路径时判断.png/.svg）
-export const factionExtMap = {
+// logo名→文件扩展名映射（用于构建logo路径时判断.png/.svg）
+export const logoExtMap = {
   "Ave Mujica": "png",
   "S.W.E.E.P.": "png",
   "东": "png",

@@ -4,9 +4,7 @@ import { DownloadOutlined, ReloadOutlined, UploadOutlined, InfoCircleOutlined, C
 import iconUrl from '/icon.png'
 import { composeImage } from './lib/composeImage'
 import { BG_FILENAME } from './config'
-import { factions, factionExtMap } from './data/faction'
-import { codeToName } from './lib/artListManager'
-import { parseArtFilename } from './lib/parseArtFile'
+import { logos, logoExtMap } from './data/logo'
 
 const { Option } = Select
 
@@ -16,7 +14,7 @@ function App() {
   const [charPos, setCharPos] = useState(0.5)
   const [charYOffset, setCharYOffset] = useState(0.5)
   const [logoScale, setLogoScale] = useState(1)
-  const [selectedFaction, setSelectedFaction] = useState(null) // null=本家, ''=无logo, 其他=指定势力
+  const [selectedLogo, setSelectedLogo] = useState(null) // null=本家, ''=无logo, 其他=指定logo
   const [outputQuality, setOutputQuality] = useState('4K')
 
   // 预览状态
@@ -82,7 +80,7 @@ function App() {
       外文名: img.foreignName || '',
       性别: '其他',
       立绘: [{ 编号: '1', 文件名: img.fileName, 文件链接: '' }],
-      logo: img.faction || '罗德岛',
+      logo: img.logo || '罗德岛',
       出处: '用户上传',
       信息: {},
       _dataUrl: img.dataUrl
@@ -229,13 +227,12 @@ function App() {
     reader.onload = (e) => {
       const dataUrl = e.target.result
       const baseName = file.name.replace(/\.[^.]+$/, '')
-      const parsed = parseArtFilename(file.name, true)
       setPendingUploadFile(file)
       setPendingUploadDataUrl(dataUrl)
       uploadForm.setFieldsValue({
-        charName: parsed.name || baseName,
-        foreignName: parsed.name || baseName,
-        defaultFaction: parsed.faction || '罗德岛'
+        charName: baseName,
+        foreignName: baseName,
+        defaultLogo: '罗德岛'
       })
       setUploadModalOpen(true)
     }
@@ -245,7 +242,7 @@ function App() {
   const handleUploadModalOk = async () => {
     try {
       const values = await uploadForm.validateFields()
-      const { charName, foreignName, defaultFaction } = values
+      const { charName, foreignName, defaultLogo } = values
 
       const allNames = allCharRecords.map(c => c.角色名)
       if (allNames.includes(charName)) {
@@ -264,7 +261,7 @@ function App() {
           height: img.height,
           charName,
           foreignName,
-          faction: defaultFaction
+          logo: defaultLogo
         }
         const newList = [...uploadedImages, newImage]
         setUploadedImages(newList)
@@ -274,7 +271,7 @@ function App() {
         setPendingSkinCode('1')
         setConfirmedChar(charName)
         setConfirmedSkinCode('1')
-        setSelectedFaction(null)
+        setSelectedLogo(null)
         setUploadModalOpen(false)
         uploadForm.resetFields()
         setPendingUploadFile(null)
@@ -304,16 +301,16 @@ function App() {
     setCharPos(0.5)
     setCharYOffset(0.5)
     setLogoScale(1)
-    setSelectedFaction(null)
+    setSelectedLogo(null)
     setOutputQuality('4K')
     message.success('参数已重置')
   }
 
   // ==================== 合成图片 ====================
-  const getLogoPath = useCallback((factionName) => {
-    if (!factionName) return null
-    const ext = factionExtMap[factionName] || 'png'
-    return `logos/${factionName}.${ext}`
+  const getLogoPath = useCallback((logoName) => {
+    if (!logoName) return null
+    const ext = logoExtMap[logoName] || 'png'
+    return `logos/${logoName}.${ext}`
   }, [])
 
   const getCanvasSize = (quality) => {
@@ -351,11 +348,11 @@ function App() {
     if (!charImage) return
 
     let logoPath = null
-    const effectiveFaction = selectedFaction === null
+    const effectiveLogo = selectedLogo === null
       ? (confirmedCharRecord?.logo || '')
-      : selectedFaction
-    if (effectiveFaction) {
-      logoPath = getLogoPath(effectiveFaction)
+      : selectedLogo
+    if (effectiveLogo) {
+      logoPath = getLogoPath(effectiveLogo)
     }
 
     setLoading(true)
@@ -372,7 +369,7 @@ function App() {
       setLoading(false)
     }
   }, [confirmedChar, confirmedCharart, confirmedCharRecord,
-      selectedFaction, charScale, charPos, charYOffset, logoScale,
+      selectedLogo, charScale, charPos, charYOffset, logoScale,
       uploadedImages, outputQuality, getLogoPath])
 
   // 确认选择后自动合成
@@ -387,7 +384,7 @@ function App() {
     if (!confirmedChar || !confirmedSkinCode) return
     const timer = setTimeout(() => generateImage(), 200)
     return () => clearTimeout(timer)
-  }, [charScale, charPos, charYOffset, logoScale, selectedFaction, outputQuality]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [charScale, charPos, charYOffset, logoScale, selectedLogo, outputQuality]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // 下载
   const handleDownload = () => {
@@ -407,10 +404,10 @@ function App() {
     message.success('下载开始')
   }
 
-  // 势力选择值
-  const factionSelectValue = selectedFaction === null
+  // Logo选择值
+  const logoSelectValue = selectedLogo === null
     ? (confirmedCharRecord?.logo || undefined)
-    : selectedFaction
+    : selectedLogo
 
   // Logo 缩略图背景色
   const logoThumbStyle = {
@@ -591,7 +588,7 @@ function App() {
                     disabled={!pendingChar || pendingCharartList.length === 0}
                   >
                     {pendingCharartList.map(art => (
-                      <Option key={art.编号} value={art.编号}>{codeToName(art.编号)}</Option>
+                      <Option key={art.编号} value={art.编号}>{art.编号}</Option>
                     ))}
                   </Select>
                 </Col>
@@ -612,16 +609,16 @@ function App() {
             {/* Logo选择 */}
             <div style={{ marginTop: 8 }}>
               <label style={{ display: 'block', marginBottom: 4, fontWeight: 500, fontSize: 13 }}>
-                势力Logo
-                {selectedFaction === null && confirmedCharRecord?.logo && (
+                Logo
+                {selectedLogo === null && confirmedCharRecord?.logo && (
                   <span style={{ color: '#999', fontSize: 12 }}> (本家{confirmedCharRecord.logo})</span>
                 )}
               </label>
               <Select
                 style={{ width: '100%' }}
-                placeholder="选择势力Logo（默认本家）"
-                value={factionSelectValue || undefined}
-                onChange={(val) => setSelectedFaction(val === '' ? '' : val)}
+                placeholder="选择Logo（默认本家）"
+                value={logoSelectValue || undefined}
+                onChange={(val) => setSelectedLogo(val === '' ? '' : val)}
                 allowClear
                 showSearch
                 filterOption={(input, option) =>
@@ -629,18 +626,18 @@ function App() {
                 }
               >
                 <Option value="">(无logo)</Option>
-                {factions.map(faction => (
-                  <Option key={faction} value={faction}>
+                {logos.map(logo => (
+                  <Option key={logo} value={logo}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                       <span style={logoThumbStyle}>
                         <img
-                          src={`logos/${faction}.${factionExtMap[faction] || 'png'}`}
+                          src={`logos/${logo}.${logoExtMap[logo] || 'png'}`}
                           alt=""
                           style={{ width: 16, height: 16, objectFit: 'contain', filter: 'brightness(10)' }}
                           onError={(e) => { e.target.style.display = 'none' }}
                         />
                       </span>
-                      {faction}
+                      {logo}
                     </span>
                   </Option>
                 ))}
@@ -752,7 +749,7 @@ function App() {
               { label: '星级', value: r.信息?.星级 ? '★'.repeat(r.信息.星级) : '' },
               { label: '职业', value: r.信息?.职业 },
               { label: '分支', value: r.信息?.分支 },
-              { label: '势力', value: r.信息?.势力 || r.logo },
+              { label: '势力', value: r.信息?.势力 ? r.信息.势力 : '' },
             ].filter(f => f.value)
             return fields.length > 0 ? (
               <Card size="small" style={{ marginTop: 12 }}>
@@ -794,14 +791,14 @@ function App() {
             <Input placeholder="输入外文名" />
           </Form.Item>
           <Form.Item
-            name="defaultFaction"
+            name="defaultLogo"
             label="默认Logo"
           >
-            <Select placeholder="选择势力Logo" showSearch filterOption={(input, option) =>
+            <Select placeholder="选择Logo" showSearch filterOption={(input, option) =>
               option.children?.toString().toLowerCase().includes(input.toLowerCase())
             }>
-              {factions.map(faction => (
-                <Option key={faction} value={faction}>{faction}</Option>
+              {logos.map(logo => (
+                <Option key={logo} value={logo}>{logo}</Option>
               ))}
             </Select>
           </Form.Item>
