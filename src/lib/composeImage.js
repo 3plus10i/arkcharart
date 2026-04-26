@@ -8,8 +8,6 @@
  */
 
 import {
-  CANVAS_WIDTH,
-  CANVAS_HEIGHT,
   DEFAULT_BG_CHAR_X,
   DEFAULT_BG_CHAR_Y,
   DEFAULT_BG_CHAR_HEIGHT_SCALE,
@@ -25,8 +23,6 @@ import {
   DEFAULT_CENTER_CHAR_Y,
   DEFAULT_CENTER_CHAR_HEIGHT_SCALE
 } from '../config.js'
-
-export { CANVAS_WIDTH, CANVAS_HEIGHT }
 
 // ==================== 核心函数 ====================
 

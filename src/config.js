@@ -1,10 +1,3 @@
-// ==================== 画布配置 ====================
-
-/** 画布宽度 - 默认4K */
-export const CANVAS_WIDTH = 3840
-/** 画布高度 - 默认4K */
-export const CANVAS_HEIGHT = 2160
-
 // ==================== 资源文件名配置 ====================
 
 /** 背景图文件名 */
@@ -19,11 +12,11 @@ export const DEFAULT_BG_CHAR_Y = 0.5
 /** 背景大立绘默认高度比例 */
 export const DEFAULT_BG_CHAR_HEIGHT_SCALE = 1.2
 
-/** 阵营图标默认水平位置 (0-1) */
+/** logo默认水平位置 (0-1) */
 export const DEFAULT_LOGO_X = 0.15
-/** 阵营图标默认垂直位置 (0-1) */
+/** logo默认垂直位置 (0-1) */
 export const DEFAULT_LOGO_Y = 0.2
-/** 阵营图标默认高度比例 */
+/** logo默认高度比例 */
 export const DEFAULT_LOGO_HEIGHT_SCALE = 0.75
 
 /** Logo阴影强度 (0=无阴影, 1=默认阴影) */
@@ -44,3 +37,9 @@ export const DEFAULT_CENTER_CHAR_X = 0.5
 export const DEFAULT_CENTER_CHAR_Y = 0.5
 /** 中心立绘默认高度比例 */
 export const DEFAULT_CENTER_CHAR_HEIGHT_SCALE = 1.0
+
+/** 裁剪羽化 */
+/** 裁剪参数 */
+export const CLIP_K = 0.2
+/** 羽化半径 */
+export const BLUR_RADIUS = 50

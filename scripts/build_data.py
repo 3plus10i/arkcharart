@@ -9,9 +9,22 @@
 
 import csv
 import json
+import locale
 import os
 import sys
 from datetime import datetime
+
+# 初始化中文排序环境
+if sys.platform == 'win32':
+    try:
+        locale.setlocale(locale.LC_COLLATE, 'chinese')
+    except locale.Error:
+        pass
+else:
+    try:
+        locale.setlocale(locale.LC_COLLATE, 'zh_CN.UTF-8')
+    except locale.Error:
+        pass
 
 
 def find_project_root():
@@ -52,6 +65,9 @@ def scan_logos(public_dir):
     )
 
     logo_list = [os.path.splitext(f)[0] for f in logo_files]
+    # 按中文拼音排序
+    logo_list.sort(key=locale.strxfrm)
+
     logo_ext_map = {}
     for f in logo_files:
         name, ext = os.path.splitext(f)

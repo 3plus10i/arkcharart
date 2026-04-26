@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { Select, Button, Card, Row, Col, Slider, Image as AntImage, message, Upload, Radio, Tooltip, Space, Spin, Modal, Form, Input } from 'antd'
+import { Select, Button, Card, Row, Col, Slider, message, Upload, Tooltip, Space, Spin, Modal, Form, Input, Segmented } from 'antd'
 import { DownloadOutlined, ReloadOutlined, UploadOutlined, InfoCircleOutlined, CheckOutlined } from '@ant-design/icons'
 import iconUrl from '/icon.png'
 import { composeImage } from './lib/composeImage'
-import { BG_FILENAME } from './config'
 import { logos, logoExtMap } from './data/logo'
 
 const { Option } = Select
@@ -15,11 +14,12 @@ function App() {
   const [charYOffset, setCharYOffset] = useState(0.5)
   const [logoScale, setLogoScale] = useState(1)
   const [selectedLogo, setSelectedLogo] = useState(null) // null=本家, ''=无logo, 其他=指定logo
-  const [outputQuality, setOutputQuality] = useState('4K')
+  const [outputQuality, setOutputQuality] = useState('1080p')
+  const [aspectRatio, setAspectRatio] = useState('16:9')
 
   // 预览状态
   const [loading, setLoading] = useState(false)
-  const [previewUrl, setPreviewUrl] = useState('')
+  const [hasRendered, setHasRendered] = useState(false)
   const canvasRef = useRef(null)
 
   // ==================== 角色选择区域状态 ====================
@@ -204,7 +204,10 @@ function App() {
   // ==================== 角色选择变化时自动选第一个立绘 ====================
   useEffect(() => {
     if (!pendingChar || !pendingCharRecord) return
-    const firstSkin = pendingCharRecord.立绘?.[0]?.编号
+    // 当前立绘编号在新角色中仍有效则保留
+    const skins = pendingCharRecord.立绘 || []
+    if (skins.some(s => s.编号 === pendingSkinCode)) return
+    const firstSkin = skins[0]?.编号
     if (firstSkin) {
       setPendingSkinCode(firstSkin)
     }
@@ -302,7 +305,8 @@ function App() {
     setCharYOffset(0.5)
     setLogoScale(1)
     setSelectedLogo(null)
-    setOutputQuality('4K')
+    setOutputQuality('1080p')
+    setAspectRatio('16:9')
     message.success('参数已重置')
   }
 
@@ -313,12 +317,14 @@ function App() {
     return `logos/${logoName}.${ext}`
   }, [])
 
-  const getCanvasSize = (quality) => {
+  const getCanvasSize = (quality, ratio) => {
+    const is43 = ratio === '4:3'
     switch (quality) {
-      case '4K': return { width: 3840, height: 2160 }
-      case '2K': return { width: 2560, height: 1440 }
-      case '1080p': return { width: 1920, height: 1080 }
-      default: return { width: 3840, height: 2160 }
+      case '4K': return is43 ? { width: 2880, height: 2160 } : { width: 3840, height: 2160 }
+      case '2K': return is43 ? { width: 1920, height: 1440 } : { width: 2560, height: 1440 }
+      case '1080p': return is43 ? { width: 1440, height: 1080 } : { width: 1920, height: 1080 }
+      case '720p': return is43 ? { width: 960, height: 720 } : { width: 1280, height: 720 }
+      default: return is43 ? { width: 2880, height: 2160 } : { width: 3840, height: 2160 }
     }
   }
 
@@ -326,7 +332,7 @@ function App() {
     if (!canvasRef.current) return
 
     const canvas = canvasRef.current
-    const { width, height } = getCanvasSize(outputQuality)
+    const { width, height } = getCanvasSize(outputQuality, aspectRatio)
     canvas.width = width
     canvas.height = height
 
@@ -357,11 +363,11 @@ function App() {
 
     setLoading(true)
     try {
-      await composeImage(canvas, BG_FILENAME, charImage, logoPath, {
+      const bgFile = aspectRatio === '4:3' ? 'bg-4-3.svg' : 'bg-16-9.svg'
+      await composeImage(canvas, bgFile, charImage, logoPath, {
         charScale, charPos, charYOffset, logoScale, charImageFallback
       })
-      const dataUrl = canvas.toDataURL('image/png')
-      setPreviewUrl(dataUrl)
+      setHasRendered(true)
     } catch (err) {
       console.error('合成失败:', err)
       message.error('图片合成失败: ' + err.message)
@@ -370,7 +376,7 @@ function App() {
     }
   }, [confirmedChar, confirmedCharart, confirmedCharRecord,
       selectedLogo, charScale, charPos, charYOffset, logoScale,
-      uploadedImages, outputQuality, getLogoPath])
+      uploadedImages, outputQuality, aspectRatio, getLogoPath])
 
   // 确认选择后自动合成
   useEffect(() => {
@@ -384,13 +390,14 @@ function App() {
     if (!confirmedChar || !confirmedSkinCode) return
     const timer = setTimeout(() => generateImage(), 200)
     return () => clearTimeout(timer)
-  }, [charScale, charPos, charYOffset, logoScale, selectedLogo, outputQuality]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [charScale, charPos, charYOffset, logoScale, selectedLogo, outputQuality, aspectRatio]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // 下载
   const handleDownload = () => {
-    if (!previewUrl) { message.warning('请先生成图片'); return }
+    if (!hasRendered || !canvasRef.current) { message.warning('请先生成图片'); return }
+    const dataUrl = canvasRef.current.toDataURL('image/png')
     const link = document.createElement('a')
-    link.href = previewUrl
+    link.href = dataUrl
     let filename
     if (confirmedChar && confirmedSkinCode) {
       filename = `合成_${confirmedChar}_${confirmedSkinCode}.png`
@@ -437,8 +444,10 @@ function App() {
             {artsDataLoading && <Spin tip="加载角色数据中..." />}
             {artsDataError && <div style={{ color: '#ff4d4f', marginBottom: 12 }}>数据加载失败: {artsDataError}</div>}
 
-            {/* 出处 + 上传 */}
-            <Row gutter={[8, 8]} style={{ marginBottom: 8 }}>
+            {/* 角色选择 + 上传 */}
+            <div style={{ marginBottom: 8 }}>
+              <label style={{ display: 'block', marginBottom: 4, fontWeight: 500, fontSize: 13 }}>角色选择器</label>
+              <Row gutter={[8, 8]}>
               <Col flex="1">
                 <Select
                   style={{ width: '100%' }}
@@ -471,9 +480,11 @@ function App() {
                 </Upload>
               </Col>
             </Row>
+            </div>
 
             {/* 筛选器 */}
             {selectedComefrom && (selectedComefrom === '方舟干员' || selectedComefrom === '终末地') && (
+              <div style={{ marginLeft: 16, borderLeft: '2px solid #e8e8e8', paddingLeft: 12 }}>
               <>
                 <Row gutter={[8, 8]} style={{ marginBottom: 8 }}>
                   <Col span={12}>
@@ -553,6 +564,7 @@ function App() {
                   </Col>
                 </Row>
               </>
+              </div>
             )}
 
             {/* 角色 + 立绘 + 确认 */}
@@ -610,9 +622,6 @@ function App() {
             <div style={{ marginTop: 8 }}>
               <label style={{ display: 'block', marginBottom: 4, fontWeight: 500, fontSize: 13 }}>
                 Logo
-                {selectedLogo === null && confirmedCharRecord?.logo && (
-                  <span style={{ color: '#999', fontSize: 12 }}> (本家{confirmedCharRecord.logo})</span>
-                )}
               </label>
               <Select
                 style={{ width: '100%' }}
@@ -643,9 +652,38 @@ function App() {
                 ))}
               </Select>
             </div>
-          </Card>
 
-          {/* 图像调整 */}
+            {/* 角色信息 */}
+            {confirmedCharRecord && (() => {
+              const r = confirmedCharRecord
+              const infoFields = r.信息
+                ? Object.entries(r.信息)
+                    .filter(([, v]) => v != null && v !== '')
+                    .map(([k, v]) => {
+                      if (k === '星级') return { label: k, value: '★'.repeat(v) }
+                      return { label: k, value: String(v) }
+                    })
+                : []
+              const fields = [
+                { label: '角色名', value: r.角色名, bold: true },
+                { label: '外文名', value: r.外文名 },
+                { label: '出处', value: r.出处 },
+                ...infoFields,
+              ].filter(f => f.value)
+              return fields.length > 0 ? (
+                <Card size="small" style={{ marginTop: 12 }}>
+                  <Row gutter={[16, 8]}>
+                    {fields.map(f => (
+                      <Col xs={24} md={8} key={f.label}>
+                        <span style={{ color: '#8c8c8c', marginRight: 8, fontSize: 13 }}>{f.label}</span>
+                        <span style={f.bold ? { fontWeight: 500 } : { fontSize: 13 }}>{f.value}</span>
+                      </Col>
+                    ))}
+                  </Row>
+                </Card>
+              ) : null
+            })()}
+          </Card>
           <Card title="图像调整">
             {/* 立绘大小 */}
             <div style={{ marginBottom: 10 }}>
@@ -683,87 +721,96 @@ function App() {
               </div>
             </div>
 
-            {/* 输出质量 */}
+            {/* 输出质量 + 画面比例 */}
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', marginBottom: 4, fontWeight: 500, fontSize: 13 }}>
                 <Space size={4}>
-                  输出质量
-                  <Tooltip title={<span>4K: 3840×2160<br/>2K: 2560×1440<br/>1080p: 1920×1080</span>}>
+                  尺寸和比例
+                  <Tooltip title={<div style={{ lineHeight: 1.8 }}>
+                    <div><b>16:9</b></div>
+                    <div>4K: 3840×2160</div>
+                    <div>2K: 2560×1440</div>
+                    <div>1080p: 1920×1080</div>
+                    <div>720p: 1280×720</div>
+                    <div style={{ marginTop: 4 }}><b>4:3</b></div>
+                    <div>4K: 2880×2160</div>
+                    <div>2K: 1920×1440</div>
+                    <div>1080p: 1440×1080</div>
+                    <div>720p: 960×720</div>
+                  </div>}>
                     <InfoCircleOutlined style={{ color: '#8c8c8c', fontSize: 12 }} />
                   </Tooltip>
                 </Space>
               </label>
-              <Radio.Group value={outputQuality} onChange={(e) => setOutputQuality(e.target.value)} optionType="button" buttonStyle="solid" size="small">
-                <Radio.Button value="4K">4K</Radio.Button>
-                <Radio.Button value="2K">2K</Radio.Button>
-                <Radio.Button value="1080p">1080p</Radio.Button>
-              </Radio.Group>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <Segmented
+                  value={outputQuality}
+                  onChange={setOutputQuality}
+                  options={['4K', '2K', '1080p', '720p']}
+                  size="middle"
+                />
+                <Segmented
+                  value={aspectRatio}
+                  onChange={setAspectRatio}
+                  options={['16:9', '4:3']}
+                  size="middle"
+                />
+              </div>
             </div>
 
             {/* 操作按钮 */}
             <Row gutter={[8, 8]}>
               <Col span={12}>
                 <Tooltip title="重置图像参数">
-                  <Button icon={<ReloadOutlined />} onClick={handleReset} size="small" block>重置</Button>
+                  <Button icon={<ReloadOutlined />} onClick={handleReset} size="middle" block>重置</Button>
                 </Tooltip>
               </Col>
               <Col span={12}>
-                <Button type="primary" icon={<DownloadOutlined />} onClick={handleDownload} loading={loading} disabled={!previewUrl} size="small" block>下载</Button>
+                <Button type="primary" icon={<DownloadOutlined />} onClick={handleDownload} loading={loading} disabled={!hasRendered} size="middle" block>下载</Button>
               </Col>
             </Row>
           </Card>
         </Col>
 
-        {/* ========== 右列：预览 + 角色信息 ========== */}
+        {/* ========== 右列：预览 ========== */}
         <Col xs={24} md={17}>
           <Card title="图像预览" styles={{ body: { padding: '0px' } }}>
             <div style={{ textAlign: 'center', position: 'relative' }}>
-              {loading && (
-                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(245, 245, 245, 0.6)', zIndex: 1 }}>
+              <canvas
+                ref={canvasRef}
+                style={{
+                  display: hasRendered ? 'block' : 'none',
+                  maxWidth: '100%',
+                  maxHeight: '80vh',
+                  objectFit: 'contain',
+                  margin: '0 auto',
+                  borderRadius: 8,
+                  border: '1px solid #f0f0f0',
+                  cursor: loading ? 'wait' : 'pointer'
+                }}
+                onClick={() => {
+                  if (loading || !canvasRef.current) return
+                  const url = canvasRef.current.toDataURL('image/png')
+                  const w = window.open('')
+                  const img = w.document.createElement('img')
+                  img.src = url
+                  img.style.maxWidth = '100%'
+                  w.document.body.appendChild(img)
+                  w.document.title = '大图预览'
+                }}
+              />
+              {loading && hasRendered && (
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255, 255, 255, 0.4)', borderRadius: 8, zIndex: 1 }}>
                   <Spin />
                 </div>
               )}
-              <canvas ref={canvasRef} style={{ display: 'none' }} />
-              {previewUrl ? (
-                <AntImage
-                  src={previewUrl}
-                  alt="合成预览"
-                  style={{ maxWidth: '100%', borderRadius: 8, border: '1px solid #f0f0f0', cursor: 'pointer' }}
-                  preview={{ src: previewUrl, mask: '点击查看大图' }}
-                />
-              ) : (
+              {!hasRendered && (
                 <div style={{ height: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999' }}>
                   选择角色和立绘后点击"确定"生成预览
                 </div>
               )}
             </div>
           </Card>
-
-          {/* 角色信息 */}
-          {confirmedCharRecord && (() => {
-            const r = confirmedCharRecord
-            const fields = [
-              { label: '角色名', value: r.角色名, bold: true },
-              { label: '外文名', value: r.外文名 },
-              { label: '出处', value: r.出处 },
-              { label: '星级', value: r.信息?.星级 ? '★'.repeat(r.信息.星级) : '' },
-              { label: '职业', value: r.信息?.职业 },
-              { label: '分支', value: r.信息?.分支 },
-              { label: '势力', value: r.信息?.势力 ? r.信息.势力 : '' },
-            ].filter(f => f.value)
-            return fields.length > 0 ? (
-              <Card size="small" style={{ marginTop: 12 }}>
-                <Row gutter={[16, 8]}>
-                  {fields.map(f => (
-                    <Col xs={24} md={8} key={f.label}>
-                      <span style={{ color: '#8c8c8c', marginRight: 8, fontSize: 13 }}>{f.label}</span>
-                      <span style={f.bold ? { fontWeight: 500 } : { fontSize: 13 }}>{f.value}</span>
-                    </Col>
-                  ))}
-                </Row>
-              </Card>
-            ) : null
-          })()}
         </Col>
       </Row>
 
