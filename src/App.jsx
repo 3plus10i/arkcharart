@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { Select, Button, Card, Row, Col, Slider, message, Upload, Tooltip, Space, Spin, Modal, Form, Input, Segmented } from 'antd'
+import { Select, Button, Card, Row, Col, Slider, message, Upload, Tooltip, Space, Spin, Modal, Form, Input, Segmented, Switch } from 'antd'
 import { DownloadOutlined, ReloadOutlined, UploadOutlined, InfoCircleOutlined, CheckOutlined } from '@ant-design/icons'
 import iconUrl from '/icon.png'
 import { composeImage } from './lib/composeImage'
@@ -16,6 +16,7 @@ function App() {
   const [selectedLogo, setSelectedLogo] = useState(null) // null=本家, ''=无logo, 其他=指定logo
   const [outputQuality, setOutputQuality] = useState('1080p')
   const [aspectRatio, setAspectRatio] = useState('16:9')
+  const [clipFeather, setClipFeather] = useState(false)
 
   // 预览状态
   const [loading, setLoading] = useState(false)
@@ -268,8 +269,12 @@ function App() {
         }
         const newList = [...uploadedImages, newImage]
         setUploadedImages(newList)
-        // 上传后自动选择并确认
+        // 上传后自动选择并确认，同时重置筛选器
         setSelectedComefrom('用户上传')
+        setSelectedProfession('')
+        setSelectedBranch('')
+        setSelectedStar('')
+        setSelectedGender('')
         setPendingChar(charName)
         setPendingSkinCode('1')
         setConfirmedChar(charName)
@@ -307,6 +312,7 @@ function App() {
     setSelectedLogo(null)
     setOutputQuality('1080p')
     setAspectRatio('16:9')
+    setClipFeather(false)
     message.success('参数已重置')
   }
 
@@ -365,7 +371,7 @@ function App() {
     try {
       const bgFile = aspectRatio === '4:3' ? 'bg-4-3.svg' : 'bg-16-9.svg'
       await composeImage(canvas, bgFile, charImage, logoPath, {
-        charScale, charPos, charYOffset, logoScale, charImageFallback
+        charScale, charPos, charYOffset, logoScale, charImageFallback, clipFeather
       })
       setHasRendered(true)
     } catch (err) {
@@ -376,7 +382,7 @@ function App() {
     }
   }, [confirmedChar, confirmedCharart, confirmedCharRecord,
       selectedLogo, charScale, charPos, charYOffset, logoScale,
-      uploadedImages, outputQuality, aspectRatio, getLogoPath])
+      uploadedImages, outputQuality, aspectRatio, clipFeather, getLogoPath])
 
   // 确认选择后自动合成
   useEffect(() => {
@@ -390,7 +396,7 @@ function App() {
     if (!confirmedChar || !confirmedSkinCode) return
     const timer = setTimeout(() => generateImage(), 200)
     return () => clearTimeout(timer)
-  }, [charScale, charPos, charYOffset, logoScale, selectedLogo, outputQuality, aspectRatio]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [charScale, charPos, charYOffset, logoScale, selectedLogo, outputQuality, aspectRatio, clipFeather]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // 下载
   const handleDownload = () => {
@@ -755,6 +761,17 @@ function App() {
                   options={['16:9', '4:3']}
                   size="middle"
                 />
+              </div>
+              <div style={{ marginTop: 10 }}>
+                <label style={{ display: 'block', marginBottom: 4, fontWeight: 500, fontSize: 13 }}>
+                  <Tooltip title="对立绘做平行四边形裁剪并羽化边缘，适用于不透明矩形素材">
+                    <Space size={4}>
+                      裁剪羽化
+                      <InfoCircleOutlined style={{ color: '#8c8c8c', fontSize: 12 }} />
+                    </Space>
+                  </Tooltip>
+                </label>
+                <Switch size="small" checked={clipFeather} onChange={setClipFeather} />
               </div>
             </div>
 

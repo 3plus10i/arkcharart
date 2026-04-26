@@ -21,10 +21,105 @@ import {
   DEFAULT_OVERLAY_ALPHA_RIGHT,
   DEFAULT_CENTER_CHAR_X,
   DEFAULT_CENTER_CHAR_Y,
-  DEFAULT_CENTER_CHAR_HEIGHT_SCALE
+  DEFAULT_CENTER_CHAR_HEIGHT_SCALE,
+  CLIP_K,
+  BLUR_RADIUS
 } from '../config.js'
 
 // ==================== 核心函数 ====================
+
+/**
+ * 创建裁剪羽化蒙版（全画布尺寸）
+ * 在立绘所在区域绘制平行四边形+羽化的蒙版，其余区域透明
+ */
+function createClipFeatherMask(imgW, imgH, imgX, imgY, canvasW, canvasH) {
+  const blurPx = Math.round(BLUR_RADIUS * Math.min(imgW, imgH))
+  const pad = blurPx * 2
+
+  // 在带padding的canvas上画蒙版
+  const mask = document.createElement('canvas')
+  mask.width = canvasW + pad * 2
+  mask.height = canvasH + pad * 2
+  const maskCtx = mask.getContext('2d')
+
+  maskCtx.filter = `blur(${blurPx}px)`
+  maskCtx.beginPath()
+  // maskCtx.moveTo(imgX + CLIP_K * imgW + pad, imgY + pad)
+  // maskCtx.lineTo(imgX + imgW + pad, imgY + pad)
+  // maskCtx.lineTo(imgX + (1 - CLIP_K) * imgW + pad, imgY + imgH + pad)
+  // maskCtx.lineTo(imgX + pad, imgY + imgH + pad)
+  maskCtx.moveTo(imgX + CLIP_K * imgW + pad + blurPx, imgY + pad + blurPx)
+  maskCtx.lineTo(imgX + imgW + pad - blurPx, imgY + pad + blurPx)
+  maskCtx.lineTo(imgX + (1 - CLIP_K) * imgW + pad - blurPx, imgY + imgH + pad - blurPx)
+  maskCtx.lineTo(imgX + pad + blurPx, imgY + imgH + pad - blurPx)
+  maskCtx.closePath()
+  maskCtx.fillStyle = 'white'
+  maskCtx.fill()
+  maskCtx.filter = 'none'
+
+  // 裁掉padding
+  const result = document.createElement('canvas')
+  result.width = canvasW
+  result.height = canvasH
+  const resultCtx = result.getContext('2d')
+  resultCtx.drawImage(mask, pad, pad, canvasW, canvasH, 0, 0, canvasW, canvasH)
+
+  return result
+}
+
+/**
+ * 对图片素材做平行四边形裁剪+羽化预处理
+ * 裁剪形状为：(k,0)→(1,0)→(1-k,1)→(0,1) 的平行四边形
+ * 边缘按 BLUR_RADIUS 做羽化渐变
+ */
+function applyClipFeather(img) {
+  const w = img.width
+  const h = img.height
+  const blurPx = Math.round(BLUR_RADIUS * Math.min(w, h))
+  const pad = blurPx * 2 // 为羽化边缘留出空间
+
+  // 1. 在带padding的canvas上绘制原图
+  const src = document.createElement('canvas')
+  src.width = w + pad * 2
+  src.height = h + pad * 2
+  const srcCtx = src.getContext('2d')
+  srcCtx.drawImage(img, pad, pad, w, h)
+
+  // 2. 创建羽化蒙版：先画纯白平行四边形，再模糊
+  const mask = document.createElement('canvas')
+  mask.width = w + pad * 2
+  mask.height = h + pad * 2
+  const maskCtx = mask.getContext('2d')
+
+  maskCtx.filter = `blur(${blurPx}px)`
+  maskCtx.beginPath()
+  // maskCtx.moveTo(CLIP_K * w + pad, pad)
+  // maskCtx.lineTo(w + pad, pad)
+  // maskCtx.lineTo((1 - CLIP_K) * w + pad, h + pad)
+  // maskCtx.lineTo(pad, h + pad)
+  maskCtx.moveTo(CLIP_K * w + pad + blurPx, pad + blurPx)
+  maskCtx.lineTo(w + pad - blurPx, pad + blurPx)
+  maskCtx.lineTo((1 - CLIP_K) * w + pad - blurPx, h + pad - blurPx)
+  maskCtx.lineTo(pad + blurPx, h + pad - blurPx)
+  maskCtx.closePath()
+  maskCtx.fillStyle = 'white'
+  maskCtx.fill()
+  maskCtx.filter = 'none'
+
+  // 3. 用蒙版作为alpha通道：destination-in 只保留蒙版不透明区域的原图像素
+  srcCtx.globalCompositeOperation = 'destination-in'
+  srcCtx.drawImage(mask, 0, 0)
+  srcCtx.globalCompositeOperation = 'source-over'
+
+  // 4. 裁掉padding，返回处理后的canvas
+  const result = document.createElement('canvas')
+  result.width = w
+  result.height = h
+  const resultCtx = result.getContext('2d')
+  resultCtx.drawImage(src, pad, pad, w, h, 0, 0, w, h)
+
+  return result
+}
 
 /**
  * 加载图片辅助函数
@@ -104,6 +199,7 @@ export async function composeImage(canvas, baseImagePath, charImagePath, logoIma
   const charPos = options.charPos ?? 0.5
   const charYOffset = options.charYOffset ?? 0.5
   const logoScale = options.logoScale ?? 1
+  const clipFeather = options.clipFeather ?? false
   
   // 计算位置偏移量 (用户50%为基准，计算偏移)
   const posOffset = charPos - 0.5
@@ -123,6 +219,12 @@ export async function composeImage(canvas, baseImagePath, charImagePath, logoIma
     }
     const [baseImg, charImg, logoImg] = await Promise.all(imagesToLoad)
 
+    // 预处理：裁剪羽化
+    let processedCharImg = charImg
+    if (clipFeather) {
+      processedCharImg = applyClipFeather(charImg)
+    }
+
     // 2. 绘制底图
     ctx.drawImage(baseImg, 0, 0, canvasWidth, canvasHeight)
 
@@ -138,11 +240,10 @@ export async function composeImage(canvas, baseImagePath, charImagePath, logoIma
     offscreen.height = canvasHeight
     const offCtx = offscreen.getContext('2d')
 
-    // 3a. 在离屏Canvas上绘制背景大立绘
+    // 3a. 在离屏Canvas上绘制背景大立绘（用原图）
     offCtx.drawImage(charImg, bgCharX, bgCharY, bgCharSize.width, bgCharSize.height)
 
-    // 3b. 对立绘可见像素混合白色渐变（30%原色 + 70%白色）
-    // 利用 'source-atop' 合成模式，只在已有像素上绘制，透明区域不受影响
+    // 3b. 对立绘可见像素混合白色渐变
     offCtx.globalCompositeOperation = 'source-atop'
     const gradient = offCtx.createLinearGradient(0, 0, canvasWidth, 0)
     gradient.addColorStop(0, `rgba(255, 255, 255, ${DEFAULT_OVERLAY_ALPHA_LEFT})`)
@@ -151,7 +252,15 @@ export async function composeImage(canvas, baseImagePath, charImagePath, logoIma
     offCtx.fillRect(0, 0, canvasWidth, canvasHeight)
     offCtx.globalCompositeOperation = 'source-over'
 
-    // 3c. 将处理后的背景立绘绘制到主Canvas
+    // 3c. 裁剪羽化：在白色遮罩之后应用，白色遮罩和立绘共同被羽化
+    if (clipFeather) {
+      const featherMask = createClipFeatherMask(bgCharSize.width, bgCharSize.height, bgCharX, bgCharY, canvasWidth, canvasHeight)
+      offCtx.globalCompositeOperation = 'destination-in'
+      offCtx.drawImage(featherMask, 0, 0)
+      offCtx.globalCompositeOperation = 'source-over'
+    }
+
+    // 3d. 将处理后的背景立绘绘制到主Canvas
     ctx.drawImage(offscreen, 0, 0)
 
     // 4. 绘制阵营图标（图层3）- 仅在提供logo时绘制
@@ -181,7 +290,7 @@ export async function composeImage(canvas, baseImagePath, charImagePath, logoIma
     const centerCharSize = calculateScaledSize(charImg, centerCharHeight)
     const centerCharX = canvasWidth * (DEFAULT_CENTER_CHAR_X + posOffset) - centerCharSize.width / 2
     const centerCharY = canvasHeight * (DEFAULT_CENTER_CHAR_Y + yOffset) - centerCharSize.height / 2
-    ctx.drawImage(charImg, centerCharX, centerCharY, centerCharSize.width, centerCharSize.height)
+    ctx.drawImage(processedCharImg, centerCharX, centerCharY, centerCharSize.width, centerCharSize.height)
 
     return true
   } catch (error) {

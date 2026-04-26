@@ -40,6 +40,6 @@ export const DEFAULT_CENTER_CHAR_HEIGHT_SCALE = 1.0
 
 /** 裁剪羽化 */
 /** 裁剪参数 */
-export const CLIP_K = 0.2
+export const CLIP_K = 0.25
 /** 羽化半径 */
-export const BLUR_RADIUS = 50
+export const BLUR_RADIUS = 0.05
