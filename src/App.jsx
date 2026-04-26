@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { Select, Button, Card, Row, Col, Slider, Image as AntImage, message, Upload, Radio, Tooltip, Space, Spin, Modal, Form, Input } from 'antd'
-import { DownloadOutlined, ReloadOutlined, UploadOutlined, InfoCircleOutlined } from '@ant-design/icons'
+import { DownloadOutlined, ReloadOutlined, UploadOutlined, InfoCircleOutlined, CheckOutlined } from '@ant-design/icons'
 import iconUrl from '/icon.png'
 import { composeImage } from './lib/composeImage'
 import { BG_FILENAME } from './config'
@@ -25,25 +25,29 @@ function App() {
   const canvasRef = useRef(null)
 
   // ==================== 角色选择区域状态 ====================
-  // 远程 JSON 数据
   const [artsData, setArtsData] = useState(null)
   const [artsDataLoading, setArtsDataLoading] = useState(false)
   const [artsDataError, setArtsDataError] = useState(null)
 
   // 上传角色列表
   const [uploadedImages, setUploadedImages] = useState([])
-  const [selectedUploadedImage, setSelectedUploadedImage] = useState(null)
 
-  // 出处筛选器（最高维度）
+  // 出处筛选器
   const [selectedComefrom, setSelectedComefrom] = useState('')
   // 条件子筛选器
   const [selectedProfession, setSelectedProfession] = useState('')
   const [selectedBranch, setSelectedBranch] = useState('')
   const [selectedStar, setSelectedStar] = useState('')
   const [selectedGender, setSelectedGender] = useState('')
-  // 角色和立绘选择
-  const [selectedChar, setSelectedChar] = useState('')
-  const [selectedSkinCode, setSelectedSkinCode] = useState('')
+  // 角色和立绘选择（这些是"暂存"状态，点确认后才生效）
+  const [pendingChar, setPendingChar] = useState('')
+  const [pendingSkinCode, setPendingSkinCode] = useState('')
+  // 确认后的状态（实际用于合成）
+  const [confirmedChar, setConfirmedChar] = useState('')
+  const [confirmedSkinCode, setConfirmedSkinCode] = useState('')
+
+  // 是否已初始化默认角色
+  const [isInitialized, setIsInitialized] = useState(false)
 
   // ==================== 上传模态框状态 ====================
   const [uploadModalOpen, setUploadModalOpen] = useState(false)
@@ -71,7 +75,6 @@ function App() {
   }, [])
 
   // ==================== 派生数据 ====================
-  // 合并内置角色 + 上传角色
   const allCharRecords = useMemo(() => {
     const builtIn = artsData?.角色 || []
     const uploaded = uploadedImages.map(img => ({
@@ -87,7 +90,6 @@ function App() {
     return [...builtIn, ...uploaded]
   }, [artsData, uploadedImages])
 
-  // 出处选项列表
   const comefromOptions = useMemo(() => {
     const builtIn = (artsData?.元信息?.角色数 || [])
       .filter(item => item.出处 !== '不限')
@@ -96,24 +98,19 @@ function App() {
     return [...builtIn, ...(hasUploaded ? ['用户上传'] : [])]
   }, [artsData, uploadedImages])
 
-  // 当前出处下的角色列表
   const comefromCharList = useMemo(() => {
     if (!selectedComefrom) return []
     return allCharRecords.filter(c => c.出处 === selectedComefrom)
   }, [selectedComefrom, allCharRecords])
 
-  // 职业选项
   const professionOptions = useMemo(() => {
     if (!selectedComefrom) return []
     const profs = [...new Set(
-      comefromCharList
-        .map(c => c.信息?.职业)
-        .filter(Boolean)
+      comefromCharList.map(c => c.信息?.职业).filter(Boolean)
     )].sort()
     return ['不限', ...profs]
   }, [selectedComefrom, comefromCharList])
 
-  // 分支选项（级联职业）
   const branchOptions = useMemo(() => {
     if (!selectedComefrom) return []
     const pool = selectedProfession && selectedProfession !== '不限'
@@ -123,25 +120,20 @@ function App() {
     return ['不限', ...branches]
   }, [selectedComefrom, comefromCharList, selectedProfession])
 
-  // 星级选项
   const starOptions = useMemo(() => {
     if (!selectedComefrom) return []
     const stars = [...new Set(
-      comefromCharList
-        .map(c => c.信息?.星级)
-        .filter(star => star != null)
+      comefromCharList.map(c => c.信息?.星级).filter(star => star != null)
     )].sort((a, b) => a - b)
     return ['不限', ...stars.map(String)]
   }, [selectedComefrom, comefromCharList])
 
-  // 性别选项
   const genderOptions = useMemo(() => {
     if (!selectedComefrom) return []
     const genders = [...new Set(comefromCharList.map(c => c.性别).filter(Boolean))].sort()
     return ['不限', ...genders]
   }, [selectedComefrom, comefromCharList])
 
-  // 筛选后的角色列表
   const filteredCharList = useMemo(() => {
     if (!selectedComefrom) return []
     let filtered = comefromCharList
@@ -160,28 +152,75 @@ function App() {
     return filtered
   }, [comefromCharList, selectedProfession, selectedBranch, selectedStar, selectedGender])
 
-  // 角色名列表（去重排序）
   const filteredCharNames = useMemo(() => {
     return [...new Set(filteredCharList.map(c => c.角色名))].sort()
   }, [filteredCharList])
 
-  // 选中角色的完整记录
-  const selectedCharRecord = useMemo(() => {
-    if (!selectedChar) return null
-    return filteredCharList.find(c => c.角色名 === selectedChar) || null
-  }, [selectedChar, filteredCharList])
+  // 暂存角色对应的完整记录
+  const pendingCharRecord = useMemo(() => {
+    if (!pendingChar) return null
+    return filteredCharList.find(c => c.角色名 === pendingChar) || null
+  }, [pendingChar, filteredCharList])
 
-  // 选中角色的立绘列表
-  const charartList = useMemo(() => {
-    if (!selectedCharRecord) return []
-    return selectedCharRecord.立绘 || []
-  }, [selectedCharRecord])
+  // 暂存角色的立绘列表
+  const pendingCharartList = useMemo(() => {
+    if (!pendingCharRecord) return []
+    return pendingCharRecord.立绘 || []
+  }, [pendingCharRecord])
 
-  // 当前选中的立绘记录
-  const selectedCharart = useMemo(() => {
-    if (!selectedSkinCode || !selectedCharRecord) return null
-    return selectedCharRecord.立绘?.find(p => p.编号 === selectedSkinCode) || null
-  }, [selectedSkinCode, selectedCharRecord])
+  // 确认后的角色记录（用于合成）
+  const confirmedCharRecord = useMemo(() => {
+    if (!confirmedChar) return null
+    // 从全量数据中查找，避免筛选器切换后找不到
+    return allCharRecords.find(c => c.角色名 === confirmedChar) || null
+  }, [confirmedChar, allCharRecords])
+
+  // 确认后的立绘记录
+  const confirmedCharart = useMemo(() => {
+    if (!confirmedSkinCode || !confirmedCharRecord) return null
+    return confirmedCharRecord.立绘?.find(p => p.编号 === confirmedSkinCode) || null
+  }, [confirmedSkinCode, confirmedCharRecord])
+
+  // ==================== 默认选择蓝毒 ====================
+  useEffect(() => {
+    if (isInitialized || !artsData) return
+    const defaultChar = '蓝毒'
+    const defaultComefrom = '方舟干员'
+    const defaultSkinCode = '2' // 精二立绘
+    const record = allCharRecords.find(c => c.角色名 === defaultChar && c.出处 === defaultComefrom)
+    if (record) {
+      setSelectedComefrom(defaultComefrom)
+      setSelectedProfession('狙击')
+      setSelectedBranch('速射手')
+      setSelectedStar('5')
+      setSelectedGender('女性')
+      setPendingChar(defaultChar)
+      setPendingSkinCode(defaultSkinCode)
+      // 直接确认，触发首次合成
+      setConfirmedChar(defaultChar)
+      setConfirmedSkinCode(defaultSkinCode)
+    }
+    setIsInitialized(true)
+  }, [artsData, allCharRecords, isInitialized])
+
+  // ==================== 角色选择变化时自动选第一个立绘 ====================
+  useEffect(() => {
+    if (!pendingChar || !pendingCharRecord) return
+    const firstSkin = pendingCharRecord.立绘?.[0]?.编号
+    if (firstSkin) {
+      setPendingSkinCode(firstSkin)
+    }
+  }, [pendingChar, pendingCharRecord])
+
+  // ==================== 确认选择 ====================
+  const handleConfirmSelection = () => {
+    if (!pendingChar || !pendingSkinCode) {
+      message.warning('请先选择角色和立绘')
+      return
+    }
+    setConfirmedChar(pendingChar)
+    setConfirmedSkinCode(pendingSkinCode)
+  }
 
   // ==================== 上传处理 ====================
   const handleFileChange = ({ file }) => {
@@ -229,10 +268,12 @@ function App() {
         }
         const newList = [...uploadedImages, newImage]
         setUploadedImages(newList)
+        // 上传后自动选择并确认
         setSelectedComefrom('用户上传')
-        setSelectedChar(charName)
-        setSelectedSkinCode('1')
-        setSelectedUploadedImage(newImage.id)
+        setPendingChar(charName)
+        setPendingSkinCode('1')
+        setConfirmedChar(charName)
+        setConfirmedSkinCode('1')
         setSelectedFaction(null)
         setUploadModalOpen(false)
         uploadForm.resetFields()
@@ -264,15 +305,7 @@ function App() {
     setCharYOffset(0.5)
     setLogoScale(1)
     setSelectedFaction(null)
-    setSelectedUploadedImage(null)
     setOutputQuality('4K')
-    setSelectedComefrom('')
-    setSelectedProfession('')
-    setSelectedBranch('')
-    setSelectedStar('')
-    setSelectedGender('')
-    setSelectedChar('')
-    setSelectedSkinCode('')
     message.success('参数已重置')
   }
 
@@ -300,27 +333,26 @@ function App() {
     canvas.width = width
     canvas.height = height
 
-    // 确定立绘来源
     let charImage
     let charImageFallback = null
-    const isUploadedChar = selectedComefrom === '用户上传'
+    const isUploadedChar = confirmedCharRecord?.出处 === '用户上传'
 
     if (isUploadedChar) {
-      const uploadedImg = uploadedImages.find(img => img.charName === selectedChar)
+      const uploadedImg = uploadedImages.find(img => img.charName === confirmedChar)
       if (uploadedImg) {
         charImage = uploadedImg.dataUrl
       }
-    } else if (selectedCharart) {
-      charImage = selectedCharart.文件链接
-      charImageFallback = `chararts/${selectedCharart.文件名}`
+    } else if (confirmedCharart) {
+      // 优先本地资源，回落远程URL
+      charImage = `chararts/${confirmedCharart.文件名}`
+      charImageFallback = confirmedCharart.文件链接 || null
     }
 
     if (!charImage) return
 
-    // 确定 logo
     let logoPath = null
     const effectiveFaction = selectedFaction === null
-      ? (selectedCharRecord?.logo || '')
+      ? (confirmedCharRecord?.logo || '')
       : selectedFaction
     if (effectiveFaction) {
       logoPath = getLogoPath(effectiveFaction)
@@ -339,16 +371,23 @@ function App() {
     } finally {
       setLoading(false)
     }
-  }, [selectedComefrom, selectedChar, selectedCharart, selectedCharRecord,
+  }, [confirmedChar, confirmedCharart, confirmedCharRecord,
       selectedFaction, charScale, charPos, charYOffset, logoScale,
       uploadedImages, outputQuality, getLogoPath])
 
-  // 选中立绘后自动合成
+  // 确认选择后自动合成
   useEffect(() => {
-    if (!selectedChar || !selectedSkinCode) return
+    if (!confirmedChar || !confirmedSkinCode) return
     const timer = setTimeout(() => generateImage(), 200)
     return () => clearTimeout(timer)
   }, [generateImage])
+
+  // 参数变化时重新合成（已有确认的角色时）
+  useEffect(() => {
+    if (!confirmedChar || !confirmedSkinCode) return
+    const timer = setTimeout(() => generateImage(), 200)
+    return () => clearTimeout(timer)
+  }, [charScale, charPos, charYOffset, logoScale, selectedFaction, outputQuality]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // 下载
   const handleDownload = () => {
@@ -356,8 +395,8 @@ function App() {
     const link = document.createElement('a')
     link.href = previewUrl
     let filename
-    if (selectedChar && selectedSkinCode) {
-      filename = `明日方舟_${selectedChar}_${selectedSkinCode}.png`
+    if (confirmedChar && confirmedSkinCode) {
+      filename = `明日方舟_${confirmedChar}_${confirmedSkinCode}.png`
     } else {
       filename = '合成.png'
     }
@@ -368,10 +407,23 @@ function App() {
     message.success('下载开始')
   }
 
-  // 势力选择值：null映射到本家logo名
+  // 势力选择值
   const factionSelectValue = selectedFaction === null
-    ? (selectedCharRecord?.logo || undefined)
+    ? (confirmedCharRecord?.logo || undefined)
     : selectedFaction
+
+  // Logo 缩略图背景色
+  const logoThumbStyle = {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    background: '#595959',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    overflow: 'hidden'
+  }
 
   return (
     <div style={{ padding: '16px 24px', maxWidth: 1800, margin: '0 auto', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -380,40 +432,189 @@ function App() {
         明日方舟立绘合成工具
       </h1>
 
-      <Row gutter={[24, 24]}>
-        {/* 左侧：参数面板 */}
-        <Col xs={24} md={8}>
-          <Card title="参数面板">
-            {/* 上传区 */}
-            <div style={{ marginBottom: 24 }}>
-              <Upload
-                accept="image/*"
-                showUploadList={false}
-                onChange={handleFileChange}
-                customRequest={() => {}}
-              >
-                <Button icon={<UploadOutlined />} block>上传立绘图</Button>
-              </Upload>
-              {uploadedImages.length > 0 && (
+      <Row gutter={[20, 20]}>
+        {/* ========== 左列：功能区 ========== */}
+        <Col xs={24} md={7}>
+          {/* 资源选择 */}
+          <Card title="资源选择" style={{ marginBottom: 16 }}>
+            {artsDataLoading && <Spin tip="加载角色数据中..." />}
+            {artsDataError && <div style={{ color: '#ff4d4f', marginBottom: 12 }}>数据加载失败: {artsDataError}</div>}
+
+            {/* 出处 + 上传 */}
+            <Row gutter={[8, 8]} style={{ marginBottom: 8 }}>
+              <Col flex="1">
                 <Select
-                  style={{ width: '100%', marginTop: 8 }}
-                  placeholder="选择已上传的立绘"
-                  value={selectedUploadedImage || undefined}
-                  onChange={setSelectedUploadedImage}
+                  style={{ width: '100%' }}
+                  placeholder="选择出处"
+                  value={selectedComefrom || undefined}
+                  onChange={(val) => {
+                    setSelectedComefrom(val)
+                    setSelectedProfession('')
+                    setSelectedBranch('')
+                    setSelectedStar('')
+                    setSelectedGender('')
+                    setPendingChar('')
+                    setPendingSkinCode('')
+                  }}
+                  allowClear
                 >
-                  {uploadedImages.map(img => (
-                    <Option key={img.id} value={img.id}>{img.charName}</Option>
+                  {comefromOptions.map(cf => (
+                    <Option key={cf} value={cf}>{cf}</Option>
                   ))}
                 </Select>
-              )}
-            </div>
+              </Col>
+              <Col>
+                <Upload
+                  accept="image/*"
+                  showUploadList={false}
+                  onChange={handleFileChange}
+                  customRequest={() => {}}
+                >
+                  <Button icon={<UploadOutlined />}>上传</Button>
+                </Upload>
+              </Col>
+            </Row>
 
-            {/* 势力Logo选择 */}
-            <div style={{ marginBottom: 24 }}>
-              <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>
+            {/* 筛选器 */}
+            {selectedComefrom && (selectedComefrom === '方舟干员' || selectedComefrom === '终末地') && (
+              <>
+                <Row gutter={[8, 8]} style={{ marginBottom: 8 }}>
+                  <Col span={12}>
+                    <Select
+                      style={{ width: '100%' }}
+                      placeholder="职业"
+                      value={selectedProfession || undefined}
+                      onChange={(val) => {
+                        setSelectedProfession(val)
+                        setSelectedBranch('')
+                        setPendingChar('')
+                        setPendingSkinCode('')
+                      }}
+                      allowClear
+                      size="small"
+                    >
+                      {professionOptions.map(p => (
+                        <Option key={p} value={p}>{p}</Option>
+                      ))}
+                    </Select>
+                  </Col>
+                  <Col span={12}>
+                    <Select
+                      style={{ width: '100%' }}
+                      placeholder="分支"
+                      value={selectedBranch || undefined}
+                      onChange={(val) => {
+                        setSelectedBranch(val)
+                        setPendingChar('')
+                        setPendingSkinCode('')
+                      }}
+                      allowClear
+                      size="small"
+                    >
+                      {branchOptions.map(b => (
+                        <Option key={b} value={b}>{b}</Option>
+                      ))}
+                    </Select>
+                  </Col>
+                </Row>
+                <Row gutter={[8, 8]} style={{ marginBottom: 8 }}>
+                  <Col span={12}>
+                    <Select
+                      style={{ width: '100%' }}
+                      placeholder="星级"
+                      value={selectedStar || undefined}
+                      onChange={(val) => {
+                        setSelectedStar(val)
+                        setPendingChar('')
+                        setPendingSkinCode('')
+                      }}
+                      allowClear
+                      size="small"
+                    >
+                      {starOptions.map(s => (
+                        <Option key={s} value={s}>{s === '不限' ? s : '★'.repeat(Number(s))}</Option>
+                      ))}
+                    </Select>
+                  </Col>
+                  <Col span={12}>
+                    <Select
+                      style={{ width: '100%' }}
+                      placeholder="性别"
+                      value={selectedGender || undefined}
+                      onChange={(val) => {
+                        setSelectedGender(val)
+                        setPendingChar('')
+                        setPendingSkinCode('')
+                      }}
+                      allowClear
+                      size="small"
+                    >
+                      {genderOptions.map(g => (
+                        <Option key={g} value={g}>{g}</Option>
+                      ))}
+                    </Select>
+                  </Col>
+                </Row>
+              </>
+            )}
+
+            {/* 角色 + 立绘 + 确认 */}
+            {selectedComefrom && (
+              <Row gutter={[8, 8]} style={{ marginBottom: 8 }}>
+                <Col span={12}>
+                  <Select
+                    style={{ width: '100%' }}
+                    placeholder="输入名字搜索 / 选择角色"
+                    value={pendingChar || undefined}
+                    onChange={(val) => {
+                      setPendingChar(val)
+                      setPendingSkinCode('')
+                    }}
+                    showSearch
+                    filterOption={(input, option) =>
+                      option.children?.toString().toLowerCase().includes(input.toLowerCase())
+                    }
+                    allowClear
+                    suffixIcon={<InfoCircleOutlined style={{ color: '#bfbfbf', fontSize: 12 }} title="可直接输入角色名搜索" />}
+                  >
+                    {filteredCharNames.map(name => (
+                      <Option key={name} value={name}>{name}</Option>
+                    ))}
+                  </Select>
+                </Col>
+                <Col span={7}>
+                  <Select
+                    style={{ width: '100%' }}
+                    placeholder="立绘"
+                    value={pendingSkinCode || undefined}
+                    onChange={setPendingSkinCode}
+                    disabled={!pendingChar || pendingCharartList.length === 0}
+                  >
+                    {pendingCharartList.map(art => (
+                      <Option key={art.编号} value={art.编号}>{codeToName(art.编号)}</Option>
+                    ))}
+                  </Select>
+                </Col>
+                <Col span={5}>
+                  <Button
+                    type="primary"
+                    icon={<CheckOutlined />}
+                    onClick={handleConfirmSelection}
+                    disabled={!pendingChar || !pendingSkinCode}
+                    block
+                  >
+                    确定
+                  </Button>
+                </Col>
+              </Row>
+            )}
+
+            {/* Logo选择 */}
+            <div style={{ marginTop: 8 }}>
+              <label style={{ display: 'block', marginBottom: 4, fontWeight: 500, fontSize: 13 }}>
                 势力Logo
-                {selectedFaction === null && selectedCharRecord?.logo && (
-                  <span style={{ color: '#999', fontSize: 12 }}> (本家{selectedCharRecord.logo})</span>
+                {selectedFaction === null && confirmedCharRecord?.logo && (
+                  <span style={{ color: '#999', fontSize: 12 }}> (本家{confirmedCharRecord.logo})</span>
                 )}
               </label>
               <Select
@@ -431,66 +632,71 @@ function App() {
                 {factions.map(faction => (
                   <Option key={faction} value={faction}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                      <img
-                        src={`logos/${faction}.${factionExtMap[faction] || 'png'}`}
-                        alt=""
-                        style={{ width: 16, height: 16, objectFit: 'contain' }}
-                        onError={(e) => { e.target.style.display = 'none' }}
-                      />
+                      <span style={logoThumbStyle}>
+                        <img
+                          src={`logos/${faction}.${factionExtMap[faction] || 'png'}`}
+                          alt=""
+                          style={{ width: 16, height: 16, objectFit: 'contain', filter: 'brightness(10)' }}
+                          onError={(e) => { e.target.style.display = 'none' }}
+                        />
+                      </span>
                       {faction}
                     </span>
                   </Option>
                 ))}
               </Select>
             </div>
+          </Card>
 
+          {/* 图像调整 */}
+          <Card title="图像调整">
             {/* 立绘大小 */}
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ fontWeight: 500, whiteSpace: 'nowrap', minWidth: 80 }}>立绘大小</span>
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontWeight: 500, whiteSpace: 'nowrap', minWidth: 64, fontSize: 13 }}>立绘大小</span>
                 <Slider min={0.5} max={2} step={0.1} value={charScale} onChange={setCharScale} style={{ flex: 1 }} />
-                <span style={{ color: '#8c8c8c', minWidth: 30, textAlign: 'right' }}>{charScale.toFixed(1)}</span>
+                <span style={{ color: '#8c8c8c', minWidth: 26, textAlign: 'right', fontSize: 12 }}>{charScale.toFixed(1)}</span>
               </div>
             </div>
 
-            {/* X轴位置 */}
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ fontWeight: 500, whiteSpace: 'nowrap', minWidth: 80 }}>X轴位置</span>
+            {/* 横向位置 */}
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontWeight: 500, whiteSpace: 'nowrap', minWidth: 64, fontSize: 13 }}>横向位置</span>
                 <Slider min={0.3} max={0.7} step={0.01} value={charPos} onChange={setCharPos} style={{ flex: 1 }} />
-                <span style={{ color: '#8c8c8c', minWidth: 30, textAlign: 'right' }}>{(charPos * 100).toFixed(0)}%</span>
+                <span style={{ color: '#8c8c8c', minWidth: 26, textAlign: 'right', fontSize: 12 }}>{(charPos * 100).toFixed(0)}%</span>
               </div>
             </div>
 
-            {/* Y轴位置 */}
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ fontWeight: 500, whiteSpace: 'nowrap', minWidth: 80 }}>Y轴位置</span>
+            {/* 纵向位置 */}
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontWeight: 500, whiteSpace: 'nowrap', minWidth: 64, fontSize: 13 }}>纵向位置</span>
                 <Slider min={0.3} max={0.7} step={0.01} value={charYOffset} onChange={setCharYOffset} style={{ flex: 1 }} />
-                <span style={{ color: '#8c8c8c', minWidth: 30, textAlign: 'right' }}>{(charYOffset * 100).toFixed(0)}%</span>
+                <span style={{ color: '#8c8c8c', minWidth: 26, textAlign: 'right', fontSize: 12 }}>{(charYOffset * 100).toFixed(0)}%</span>
               </div>
             </div>
 
             {/* Logo大小 */}
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ fontWeight: 500, whiteSpace: 'nowrap', minWidth: 80 }}>Logo大小</span>
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontWeight: 500, whiteSpace: 'nowrap', minWidth: 64, fontSize: 13 }}>Logo大小</span>
                 <Slider min={0.5} max={2} step={0.1} value={logoScale} onChange={setLogoScale} style={{ flex: 1 }} />
-                <span style={{ color: '#8c8c8c', minWidth: 30, textAlign: 'right' }}>{logoScale.toFixed(1)}</span>
+                <span style={{ color: '#8c8c8c', minWidth: 26, textAlign: 'right', fontSize: 12 }}>{logoScale.toFixed(1)}</span>
               </div>
             </div>
 
             {/* 输出质量 */}
-            <div style={{ marginBottom: 24 }}>
-              <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>
-                <Space>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', marginBottom: 4, fontWeight: 500, fontSize: 13 }}>
+                <Space size={4}>
                   输出质量
                   <Tooltip title={<span>4K: 3840×2160<br/>2K: 2560×1440<br/>1080p: 1920×1080</span>}>
-                    <InfoCircleOutlined style={{ color: '#8c8c8c', fontSize: 14 }} />
+                    <InfoCircleOutlined style={{ color: '#8c8c8c', fontSize: 12 }} />
                   </Tooltip>
                 </Space>
               </label>
-              <Radio.Group value={outputQuality} onChange={(e) => setOutputQuality(e.target.value)} optionType="button" buttonStyle="solid">
+              <Radio.Group value={outputQuality} onChange={(e) => setOutputQuality(e.target.value)} optionType="button" buttonStyle="solid" size="small">
                 <Radio.Button value="4K">4K</Radio.Button>
                 <Radio.Button value="2K">2K</Radio.Button>
                 <Radio.Button value="1080p">1080p</Radio.Button>
@@ -498,23 +704,23 @@ function App() {
             </div>
 
             {/* 操作按钮 */}
-            <Row gutter={[12, 12]}>
+            <Row gutter={[8, 8]}>
               <Col span={12}>
-                <Tooltip title="重置所有参数和选择">
-                  <Button icon={<ReloadOutlined />} onClick={handleReset} block>重置</Button>
+                <Tooltip title="重置图像参数">
+                  <Button icon={<ReloadOutlined />} onClick={handleReset} size="small" block>重置</Button>
                 </Tooltip>
               </Col>
               <Col span={12}>
-                <Button type="primary" icon={<DownloadOutlined />} onClick={handleDownload} loading={loading} disabled={!previewUrl} block>下载</Button>
+                <Button type="primary" icon={<DownloadOutlined />} onClick={handleDownload} loading={loading} disabled={!previewUrl} size="small" block>下载</Button>
               </Col>
             </Row>
           </Card>
         </Col>
 
-        {/* 右侧：预览 */}
-        <Col xs={24} md={16}>
-          <Card title="预览">
-            <div style={{ textAlign: 'center', minHeight: 400, position: 'relative' }}>
+        {/* ========== 右列：预览 + 角色信息 ========== */}
+        <Col xs={24} md={17}>
+          <Card title="图像预览">
+            <div style={{ textAlign: 'center', minHeight: 500, position: 'relative' }}>
               {loading && (
                 <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(245, 245, 245, 0.6)', zIndex: 1 }}>
                   <Spin />
@@ -529,224 +735,38 @@ function App() {
                   preview={{ src: previewUrl, mask: '点击查看大图' }}
                 />
               ) : (
-                <div style={{ height: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999' }}>
-                  选择出处、角色和立绘后显示预览
+                <div style={{ height: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999' }}>
+                  选择角色和立绘后点击"确定"生成预览
                 </div>
               )}
             </div>
           </Card>
-        </Col>
-      </Row>
 
-      {/* 角色选择区（全宽） */}
-      <Row gutter={[24, 24]} style={{ marginTop: 24 }}>
-        <Col span={24}>
-          <Card title="角色选择">
-            {artsDataLoading && <Spin tip="加载角色数据中..." />}
-            {artsDataError && <div style={{ color: '#ff4d4f', marginBottom: 12 }}>数据加载失败: {artsDataError}</div>}
-
-            {/* 出处筛选器 */}
-            <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
-              <Col span={24}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontWeight: 500, whiteSpace: 'nowrap' }}>出处</span>
-                  <Select
-                    style={{ flex: 1 }}
-                    placeholder="选择出处"
-                    value={selectedComefrom || undefined}
-                    onChange={(val) => {
-                      setSelectedComefrom(val)
-                      setSelectedProfession('')
-                      setSelectedBranch('')
-                      setSelectedStar('')
-                      setSelectedGender('')
-                      setSelectedChar('')
-                      setSelectedSkinCode('')
-                    }}
-                    allowClear
-                  >
-                    {comefromOptions.map(cf => (
-                      <Option key={cf} value={cf}>{cf}</Option>
-                    ))}
-                  </Select>
-                </div>
-              </Col>
-            </Row>
-
-            {/* 条件子筛选器：方舟干员 / 终末地 */}
-            {selectedComefrom && (selectedComefrom === '方舟干员' || selectedComefrom === '终末地') && (
-              <>
-                <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
-                  <Col span={12}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontWeight: 500, whiteSpace: 'nowrap' }}>职业</span>
-                      <Select
-                        style={{ flex: 1 }}
-                        placeholder="选择职业"
-                        value={selectedProfession || undefined}
-                        onChange={(val) => {
-                          setSelectedProfession(val)
-                          setSelectedBranch('')
-                          setSelectedChar('')
-                          setSelectedSkinCode('')
-                        }}
-                        allowClear
-                      >
-                        {professionOptions.map(p => (
-                          <Option key={p} value={p}>{p}</Option>
-                        ))}
-                      </Select>
-                    </div>
-                  </Col>
-                  <Col span={12}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontWeight: 500, whiteSpace: 'nowrap' }}>分支</span>
-                      <Select
-                        style={{ flex: 1 }}
-                        placeholder="选择分支"
-                        value={selectedBranch || undefined}
-                        onChange={(val) => {
-                          setSelectedBranch(val)
-                          setSelectedChar('')
-                          setSelectedSkinCode('')
-                        }}
-                        allowClear
-                      >
-                        {branchOptions.map(b => (
-                          <Option key={b} value={b}>{b}</Option>
-                        ))}
-                      </Select>
-                    </div>
-                  </Col>
-                </Row>
-
-                <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
-                  <Col span={12}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontWeight: 500, whiteSpace: 'nowrap' }}>星级</span>
-                      <Select
-                        style={{ flex: 1 }}
-                        placeholder="选择星级"
-                        value={selectedStar || undefined}
-                        onChange={(val) => {
-                          setSelectedStar(val)
-                          setSelectedChar('')
-                          setSelectedSkinCode('')
-                        }}
-                        allowClear
-                      >
-                        {starOptions.map(s => (
-                          <Option key={s} value={s}>{s === '不限' ? s : '★'.repeat(Number(s))}</Option>
-                        ))}
-                      </Select>
-                    </div>
-                  </Col>
-                  <Col span={12}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontWeight: 500, whiteSpace: 'nowrap' }}>性别</span>
-                      <Select
-                        style={{ flex: 1 }}
-                        placeholder="选择性别"
-                        value={selectedGender || undefined}
-                        onChange={(val) => {
-                          setSelectedGender(val)
-                          setSelectedChar('')
-                          setSelectedSkinCode('')
-                        }}
-                        allowClear
-                      >
-                        {genderOptions.map(g => (
-                          <Option key={g} value={g}>{g}</Option>
-                        ))}
-                      </Select>
-                    </div>
-                  </Col>
-                </Row>
-              </>
-            )}
-
-            {/* 角色下拉 + 立绘选择 */}
-            <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
-              <Col span={18}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontWeight: 500, whiteSpace: 'nowrap' }}>
-                    角色 <span style={{ color: '#1677ff', fontWeight: 400 }}>(共{filteredCharNames.length}个)</span>
-                  </span>
-                  <Select
-                    style={{ flex: 1 }}
-                    placeholder={selectedComefrom ? '选择角色' : '请先选择出处'}
-                    value={selectedChar || undefined}
-                    onChange={(val) => {
-                      setSelectedChar(val)
-                      setSelectedSkinCode('')
-                    }}
-                    showSearch
-                    filterOption={(input, option) =>
-                      option.children?.toString().toLowerCase().includes(input.toLowerCase())
-                    }
-                    allowClear
-                    disabled={!selectedComefrom}
-                  >
-                    {filteredCharNames.map(name => (
-                      <Option key={name} value={name}>{name}</Option>
-                    ))}
-                  </Select>
-                </div>
-              </Col>
-              <Col span={6}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontWeight: 500, whiteSpace: 'nowrap' }}>立绘</span>
-                  <Select
-                    style={{ flex: 1 }}
-                    placeholder="立绘"
-                    value={selectedSkinCode || undefined}
-                    onChange={setSelectedSkinCode}
-                    disabled={!selectedChar || charartList.length === 0}
-                  >
-                    {charartList.map(art => (
-                      <Option key={art.编号} value={art.编号}>{codeToName(art.编号)}</Option>
-                    ))}
-                  </Select>
-                </div>
-              </Col>
-            </Row>
-
-            {/* 角色信息显示 */}
-            {selectedCharRecord && (
-              <div style={{ background: '#fafafa', borderRadius: 8, padding: '12px 16px' }}>
+          {/* 角色信息 */}
+          {confirmedCharRecord && (() => {
+            const r = confirmedCharRecord
+            const fields = [
+              { label: '角色名', value: r.角色名, bold: true },
+              { label: '外文名', value: r.外文名 },
+              { label: '出处', value: r.出处 },
+              { label: '星级', value: r.信息?.星级 ? '★'.repeat(r.信息.星级) : '' },
+              { label: '职业', value: r.信息?.职业 },
+              { label: '分支', value: r.信息?.分支 },
+              { label: '势力', value: r.信息?.势力 || r.logo },
+            ].filter(f => f.value)
+            return fields.length > 0 ? (
+              <Card size="small" style={{ marginTop: 12 }}>
                 <Row gutter={[16, 8]}>
-                  <Col span={4}>
-                    <span style={{ color: '#8c8c8c' }}>角色名</span>
-                    <div style={{ fontWeight: 500 }}>{selectedCharRecord.角色名}</div>
-                  </Col>
-                  <Col span={5}>
-                    <span style={{ color: '#8c8c8c' }}>外文名</span>
-                    <div>{selectedCharRecord.外文名 || '—'}</div>
-                  </Col>
-                  <Col span={3}>
-                    <span style={{ color: '#8c8c8c' }}>出处</span>
-                    <div>{selectedCharRecord.出处}</div>
-                  </Col>
-                  <Col span={3}>
-                    <span style={{ color: '#8c8c8c' }}>星级</span>
-                    <div>{selectedCharRecord.信息?.星级 ? '★'.repeat(selectedCharRecord.信息.星级) : '—'}</div>
-                  </Col>
-                  <Col span={3}>
-                    <span style={{ color: '#8c8c8c' }}>职业</span>
-                    <div>{selectedCharRecord.信息?.职业 || '—'}</div>
-                  </Col>
-                  <Col span={3}>
-                    <span style={{ color: '#8c8c8c' }}>分支</span>
-                    <div>{selectedCharRecord.信息?.分支 || '—'}</div>
-                  </Col>
-                  <Col span={3}>
-                    <span style={{ color: '#8c8c8c' }}>势力</span>
-                    <div>{selectedCharRecord.信息?.势力 || selectedCharRecord.logo || '—'}</div>
-                  </Col>
+                  {fields.map(f => (
+                    <Col xs={24} md={8} key={f.label}>
+                      <span style={{ color: '#8c8c8c', marginRight: 8, fontSize: 13 }}>{f.label}</span>
+                      <span style={f.bold ? { fontWeight: 500 } : { fontSize: 13 }}>{f.value}</span>
+                    </Col>
+                  ))}
                 </Row>
-              </div>
-            )}
-          </Card>
+              </Card>
+            ) : null
+          })()}
         </Col>
       </Row>
 

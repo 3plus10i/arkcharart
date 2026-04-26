@@ -41,12 +41,17 @@ function loadImage(src, fallbackSrc) {
   }
   return new Promise((resolve, reject) => {
     const img = new Image()
-    img.crossOrigin = 'anonymous'
+    // 远程URL需要设置crossOrigin，本地路径不需要
+    if (src.startsWith('http')) {
+      img.crossOrigin = 'anonymous'
+    }
     img.onload = () => resolve(img)
     img.onerror = () => {
       if (fallbackSrc) {
-        // 远程加载失败，尝试本地回落
         const fallbackImg = new Image()
+        if (fallbackSrc.startsWith('http')) {
+          fallbackImg.crossOrigin = 'anonymous'
+        }
         fallbackImg.onload = () => resolve(fallbackImg)
         fallbackImg.onerror = () => reject(new Error(`加载图片失败: ${src}，回落也失败: ${fallbackSrc}`))
         fallbackImg.src = fallbackSrc
