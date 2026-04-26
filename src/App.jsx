@@ -224,6 +224,15 @@ function App() {
     setConfirmedSkinCode(pendingSkinCode)
   }
 
+  const handleSelectorReset = () => {
+    setSelectedProfession('')
+    setSelectedBranch('')
+    setSelectedStar('')
+    setSelectedGender('')
+    setPendingChar('')
+    setPendingSkinCode('')
+  }
+
   // ==================== 上传处理 ====================
   const handleFileChange = ({ file }) => {
     if (!file || !file.originFileObj) return
@@ -484,6 +493,9 @@ function App() {
                 >
                   <Button icon={<UploadOutlined />}>上传</Button>
                 </Upload>
+              </Col>
+              <Col>
+                <Button icon={<ReloadOutlined />} onClick={handleSelectorReset}>重置</Button>
               </Col>
             </Row>
             </div>
