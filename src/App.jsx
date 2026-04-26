@@ -393,7 +393,7 @@ function App() {
     link.href = previewUrl
     let filename
     if (confirmedChar && confirmedSkinCode) {
-      filename = `明日方舟_${confirmedChar}_${confirmedSkinCode}.png`
+      filename = `合成_${confirmedChar}_${confirmedSkinCode}.png`
     } else {
       filename = '合成.png'
     }
@@ -426,7 +426,7 @@ function App() {
     <div style={{ padding: '16px 24px', maxWidth: 1800, margin: '0 auto', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <h1 style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <img src={iconUrl} alt="" style={{ width: 40, height: 40 }} />
-        明日方舟立绘合成工具
+        立绘合成工具
       </h1>
 
       <Row gutter={[20, 20]}>
@@ -716,8 +716,8 @@ function App() {
 
         {/* ========== 右列：预览 + 角色信息 ========== */}
         <Col xs={24} md={17}>
-          <Card title="图像预览">
-            <div style={{ textAlign: 'center', minHeight: 500, position: 'relative' }}>
+          <Card title="图像预览" styles={{ body: { padding: '0px' } }}>
+            <div style={{ textAlign: 'center', position: 'relative' }}>
               {loading && (
                 <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(245, 245, 245, 0.6)', zIndex: 1 }}>
                   <Spin />
@@ -806,36 +806,32 @@ function App() {
       </Modal>
 
       {/* 页脚 */}
-      <footer style={{ marginTop: 'auto', padding: '16px', background: '#fafafa', borderTop: '1px solid #f0f0f0' }}>
+      <footer style={{ marginTop: 'auto', padding: '8px', background: '#fafafa', borderRadius: '8px' }}>
         <Row justify="space-between" align="middle">
           <Col>
             <div style={{ fontSize: 14, color: '#8c8c8c' }}>© 2026 ArkCharArt</div>
           </Col>
           <Col>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-              <span style={{ fontSize: 14, color: '#8c8c8c' }}>
-                你可能还需要…<a href="https://imgpress.3plus10i.top" target="_blank" rel="noopener noreferrer" style={{ color: '#1890ff' }}>ImgPress快捷图片压缩</a>
-              </span>
-              <span style={{ color: '#d9d9d9' }}>|</span>
               <Tooltip title="项目主页">
                 <a href="https://github.com/3plus10i/arkcharart" target="_blank" rel="noopener noreferrer">
-                  <img src="github-favicon.svg" alt="GitHub" style={{ width: 16, height: 16, display: 'block' }} />
+                  <img src="github-favicon.svg" alt="GitHub" style={{ width: 24, height: 24, display: 'block' }} />
                 </a>
               </Tooltip>
               <Tooltip title="作者主站">
                 <a href="https://blog.3plus10i.top" target="_blank" rel="noopener noreferrer">
-                  <img src="blog-icon.ico" alt="博客" style={{ width: 16, height: 16, display: 'block' }} />
+                  <img src="blog-icon.ico" alt="博客" style={{ width: 24, height: 24, display: 'block' }} />
                 </a>
               </Tooltip>
               <span style={{ color: '#d9d9d9' }}>|</span>
               <Tooltip title="鹰角网络 - 明日方舟">
                 <a href="https://ak.hypergryph.com/" target="_blank" rel="noopener noreferrer">
-                  <img src="arknights-favicon.ico" alt="明日方舟" style={{ width: 16, height: 16, display: 'block' }} />
+                  <img src="arknights-favicon.ico" alt="明日方舟" style={{ width: 24, height: 24, display: 'block' }} />
                 </a>
               </Tooltip>
               <Tooltip title="PRTS - Wiki">
                 <a href="https://prts.wiki" target="_blank" rel="noopener noreferrer">
-                  <img src="prts-favicon.ico" alt="PRTS" style={{ width: 16, height: 16, display: 'block' }} />
+                  <img src="prts-favicon.ico" alt="PRTS" style={{ width: 24, height: 24, display: 'block' }} />
                 </a>
               </Tooltip>
             </div>
