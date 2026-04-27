@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "build-data": "python scripts/build_data.py",
+    "build-data": "node scripts/build_data.js",
     "dev": "npm run build-data && vite",
     "build": "npm run build-data && vite build",
     "preview": "vite preview"

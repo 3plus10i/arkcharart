@@ -36,7 +36,7 @@ npm run build    # 构建生产版本
 ```
 scripts/
   arts_data.csv       # 角色数据源（手工维护的CSV）
-  build_data.py       # 统一构建脚本
+  build_data.js       # 统一构建脚本
 public/
   chararts/           # 角色立绘 PNG
   logos/              # Logo图标 PNG/SVG
@@ -48,8 +48,7 @@ src/
   App.css             # 样式
   config.js           # 合成参数常量
   main.jsx            # 入口
-  data/               # 由脚本自动生成，勿手动编辑
-    logo.js           # logo名+扩展名映射
+  data/               # （已移至 public/logo_data.json）
   lib/
     composeImage.js   # Canvas 合成核心
 ```

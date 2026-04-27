@@ -3,7 +3,6 @@ import { Select, Button, Card, Row, Col, Slider, message, Upload, Tooltip, Space
 import { DownloadOutlined, ReloadOutlined, UploadOutlined, InfoCircleOutlined, CheckOutlined } from '@ant-design/icons'
 import iconUrl from '/icon.png'
 import { composeImage } from './lib/composeImage'
-import { logos, logoExtMap } from './data/logo'
 
 const { Option } = Select
 
@@ -55,22 +54,42 @@ function App() {
   const [pendingUploadDataUrl, setPendingUploadDataUrl] = useState('')
 
   // ==================== 数据加载 ====================
+  const [logoData, setLogoData] = useState([])
+
+  // 从 logoData 派生 logo 名列表和 logo名: ext 映射
+  const logos = useMemo(() => logoData.map(item => item.logo), [logoData])
+  const logoExtMap = useMemo(() => {
+    const map = {}
+    for (const item of logoData) {
+      map[item.logo] = item.ext
+    }
+    return map
+  }, [logoData])
+
   useEffect(() => {
-    const fetchArtsData = async () => {
+    const fetchData = async () => {
       setArtsDataLoading(true)
       try {
-        const resp = await fetch('/arts_data.json')
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
-        const data = await resp.json()
-        setArtsData(data)
+        const [artsResp, logoResp] = await Promise.all([
+          fetch('/arts_data.json'),
+          fetch('/logo_data.json'),
+        ])
+        if (!artsResp.ok) throw new Error(`arts_data HTTP ${artsResp.status}`)
+        if (!logoResp.ok) throw new Error(`logo_data HTTP ${logoResp.status}`)
+        const [artsJson, logoJson] = await Promise.all([
+          artsResp.json(),
+          logoResp.json(),
+        ])
+        setArtsData(artsJson)
+        setLogoData(logoJson)
       } catch (err) {
-        console.error('加载角色数据失败:', err)
+        console.error('加载数据失败:', err)
         setArtsDataError(err.message)
       } finally {
         setArtsDataLoading(false)
       }
     }
-    fetchArtsData()
+    fetchData()
   }, [])
 
   // ==================== 派生数据 ====================
@@ -330,7 +349,7 @@ function App() {
     if (!logoName) return null
     const ext = logoExtMap[logoName] || 'png'
     return `logos/${logoName}.${ext}`
-  }, [])
+  }, [logoExtMap])
 
   const getCanvasSize = (quality, ratio) => {
     const is43 = ratio === '4:3'
@@ -707,8 +726,8 @@ function App() {
             <div style={{ marginBottom: 10 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ fontWeight: 500, whiteSpace: 'nowrap', minWidth: 64, fontSize: 13 }}>立绘大小</span>
-                <Slider min={0.5} max={2} step={0.1} value={charScale} onChange={setCharScale} style={{ flex: 1 }} />
-                <span style={{ color: '#8c8c8c', minWidth: 26, textAlign: 'right', fontSize: 12 }}>{charScale.toFixed(1)}</span>
+                <Slider min={0.5} max={2} step={0.01} value={charScale} onChange={setCharScale} style={{ flex: 1 }} />
+                <span style={{ color: '#8c8c8c', minWidth: 32, textAlign: 'right', fontSize: 12 }}>{charScale.toFixed(2)}</span>
               </div>
             </div>
 
@@ -734,8 +753,8 @@ function App() {
             <div style={{ marginBottom: 10 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ fontWeight: 500, whiteSpace: 'nowrap', minWidth: 64, fontSize: 13 }}>Logo大小</span>
-                <Slider min={0.5} max={2} step={0.1} value={logoScale} onChange={setLogoScale} style={{ flex: 1 }} />
-                <span style={{ color: '#8c8c8c', minWidth: 26, textAlign: 'right', fontSize: 12 }}>{logoScale.toFixed(1)}</span>
+                <Slider min={0.5} max={2} step={0.01} value={logoScale} onChange={setLogoScale} style={{ flex: 1 }} />
+                <span style={{ color: '#8c8c8c', minWidth: 32, textAlign: 'right', fontSize: 12 }}>{logoScale.toFixed(2)}</span>
               </div>
             </div>
 
