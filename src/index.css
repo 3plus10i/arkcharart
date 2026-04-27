@@ -15,6 +15,7 @@ body {
 /* 减小 ant-card 的 padding */
 .ant-card .ant-card-body {
   padding: 16px;
+  transition: padding 0.25s ease;  /* 与卡片收起动画时间匹配 */
 }
 
 /* 防止移动端下拉菜单滚动穿透到页面 */
@@ -29,4 +30,17 @@ body {
     flex: 0 0 100% !important;
     max-width: 100% !important;
   }
+}
+
+/* 卡片收起展开动画 */
+.collapse-wrapper {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 0.25s ease;
+}
+.collapse-wrapper.collapsed {
+  grid-template-rows: 0fr;
+}
+.collapse-inner {
+  overflow: hidden;
 }

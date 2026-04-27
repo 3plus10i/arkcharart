@@ -480,9 +480,11 @@ function App() {
         <Col xs={24} lg={7}>
           {/* 资源选择 */}
           <Card title="资源选择" style={{ marginBottom: 16 }}
-            extra={<span onClick={() => setResourceCollapsed(v => !v)} style={{ cursor: 'pointer', fontSize: 13 }}>{resourceCollapsed ? '展开 ▼' : '收起 ▲'}</span>}
+            styles={{ body: { padding: resourceCollapsed ? 0 : undefined } }}
+            extra={<span onClick={() => setResourceCollapsed(v => !v)} style={{ cursor: 'pointer', fontSize: 13, color: '#888'}}>{resourceCollapsed ? '展开 ▼' : '收起 ▲'}</span>}
           >
-            {!resourceCollapsed && <>
+            <div className={`collapse-wrapper${resourceCollapsed ? ' collapsed' : ''}`}>
+            <div className="collapse-inner">
             {artsDataLoading && <Spin tip="加载角色数据中..." />}
             {artsDataError && <div style={{ color: '#ff4d4f', marginBottom: 12 }}>数据加载失败: {artsDataError}</div>}
 
@@ -671,10 +673,12 @@ function App() {
               ].filter(f => f.value)
               return fields.length > 0 ? (
                 <Card size="small" style={{ marginTop: 8, marginBottom: 8 }}
+                  styles={{ body: { padding: charInfoCollapsed ? 0 : undefined } }}
                   title={<span style={{ fontSize: 13 }}>角色信息</span>}
-                  extra={<span onClick={() => setCharInfoCollapsed(v => !v)} style={{ cursor: 'pointer', fontSize: 13 }}>{charInfoCollapsed ? '展开 ▼' : '收起 ▲'}</span>}
+                  extra={<span onClick={() => setCharInfoCollapsed(v => !v)} style={{ cursor: 'pointer', fontSize: 13, color: '#888' }}>{charInfoCollapsed ? '展开 ▼' : '收起 ▲'}</span>}
                 >
-                  {!charInfoCollapsed && (
+                  <div className={`collapse-wrapper${charInfoCollapsed ? ' collapsed' : ''}`}>
+                  <div className="collapse-inner">
                   <Row gutter={[16, 8]}>
                     {fields.map(f => (
                       <Col className="char-info-col" xs={12} sm={8} key={f.label}>
@@ -683,7 +687,7 @@ function App() {
                       </Col>
                     ))}
                   </Row>
-                  )}
+                  </div></div>
                 </Card>
               ) : null
             })()}
@@ -736,12 +740,14 @@ function App() {
                 确定
               </Button>
             )}
-            </>}{/* resourceCollapsed end */}
+            </div></div>{/* resourceCollapsed end */}
           </Card>
           <Card title="图像调整"
-            extra={<span onClick={() => setAdjustCollapsed(v => !v)} style={{ cursor: 'pointer', fontSize: 13 }}>{adjustCollapsed ? '展开 ▼' : '收起 ▲'}</span>}
+            styles={{ body: { padding: adjustCollapsed ? 0 : undefined } }}
+            extra={<span onClick={() => setAdjustCollapsed(v => !v)} style={{ cursor: 'pointer', fontSize: 13, color: '#888' }}>{adjustCollapsed ? '展开 ▼' : '收起 ▲'}</span>}
           >
-            {!adjustCollapsed && <>
+            <div className={`collapse-wrapper${adjustCollapsed ? ' collapsed' : ''}`}>
+            <div className="collapse-inner">
             {/* 立绘大小 */}
             <div style={{ marginBottom: 10 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -837,7 +843,7 @@ function App() {
                 <Button type="primary" icon={<DownloadOutlined />} onClick={handleDownload} loading={loading} disabled={!hasRendered} size="middle" block>下载</Button>
               </Col>
             </Row>
-            </>}{/* adjustCollapsed end */}
+            </div></div>{/* adjustCollapsed end */}
           </Card>
         </Col>
 
