@@ -16,3 +16,20 @@ body {
 .ant-card .ant-card-body {
   padding: 16px;
 }
+
+/* 防止移动端下拉菜单滚动穿透到页面 */
+.ant-select-dropdown,
+.ant-select-dropdown .rc-virtual-list-holder {
+  overscroll-behavior: contain;
+}
+
+/* 窄屏时隐藏确定按钮文字，只显示图标 */
+@media (max-width: 400px) {
+  .confirm-btn-text {
+    display: none;
+  }
+  .char-info-col {
+    flex: 0 0 100% !important;
+    max-width: 100% !important;
+  }
+}

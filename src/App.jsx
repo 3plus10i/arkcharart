@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { Select, Button, Card, Row, Col, Slider, message, Upload, Tooltip, Space, Spin, Modal, Form, Input, Segmented, Switch } from 'antd'
-import { DownloadOutlined, ReloadOutlined, UploadOutlined, InfoCircleOutlined, CheckOutlined } from '@ant-design/icons'
+import { DownloadOutlined, ReloadOutlined, UploadOutlined, InfoCircleOutlined, CheckOutlined, DownOutlined, UpOutlined } from '@ant-design/icons'
 import iconUrl from '/icon.png'
 import { composeImage } from './lib/composeImage'
 
@@ -46,6 +46,11 @@ function App() {
 
   // 是否已初始化默认角色
   const [isInitialized, setIsInitialized] = useState(false)
+
+  // ==================== 面板折叠状态 ====================
+  const [resourceCollapsed, setResourceCollapsed] = useState(false)
+  const [charInfoCollapsed, setCharInfoCollapsed] = useState(false)
+  const [adjustCollapsed, setAdjustCollapsed] = useState(false)
 
   // ==================== 上传模态框状态 ====================
   const [uploadModalOpen, setUploadModalOpen] = useState(false)
@@ -472,9 +477,12 @@ function App() {
 
       <Row gutter={[20, 20]}>
         {/* ========== 左列：功能区 ========== */}
-        <Col xs={24} md={7}>
+        <Col xs={24} lg={7}>
           {/* 资源选择 */}
-          <Card title="资源选择" style={{ marginBottom: 16 }}>
+          <Card title="资源选择" style={{ marginBottom: 16 }}
+            extra={<span onClick={() => setResourceCollapsed(v => !v)} style={{ cursor: 'pointer', fontSize: 13 }}>{resourceCollapsed ? '展开 ▼' : '收起 ▲'}</span>}
+          >
+            {!resourceCollapsed && <>
             {artsDataLoading && <Spin tip="加载角色数据中..." />}
             {artsDataError && <div style={{ color: '#ff4d4f', marginBottom: 12 }}>数据加载失败: {artsDataError}</div>}
 
@@ -649,7 +657,7 @@ function App() {
                     disabled={!pendingChar || !pendingSkinCode}
                     block
                   >
-                    确定
+                    <span className="confirm-btn-text">确定</span>
                   </Button>
                 </Col>
               </Row>
@@ -708,20 +716,29 @@ function App() {
                 ...infoFields,
               ].filter(f => f.value)
               return fields.length > 0 ? (
-                <Card size="small" style={{ marginTop: 12 }}>
+                <Card size="small" style={{ marginTop: 12 }}
+                  title={<span style={{ fontSize: 13 }}>角色信息</span>}
+                  extra={<span onClick={() => setCharInfoCollapsed(v => !v)} style={{ cursor: 'pointer', fontSize: 13 }}>{charInfoCollapsed ? '展开 ▼' : '收起 ▲'}</span>}
+                >
+                  {!charInfoCollapsed && (
                   <Row gutter={[16, 8]}>
                     {fields.map(f => (
-                      <Col xs={24} md={8} key={f.label}>
+                      <Col className="char-info-col" xs={12} sm={8} key={f.label}>
                         <span style={{ color: '#8c8c8c', marginRight: 8, fontSize: 13 }}>{f.label}</span>
                         <span style={f.bold ? { fontWeight: 500 } : { fontSize: 13 }}>{f.value}</span>
                       </Col>
                     ))}
                   </Row>
+                  )}
                 </Card>
               ) : null
             })()}
+            </>}{/* resourceCollapsed end */}
           </Card>
-          <Card title="图像调整">
+          <Card title="图像调整"
+            extra={<span onClick={() => setAdjustCollapsed(v => !v)} style={{ cursor: 'pointer', fontSize: 13 }}>{adjustCollapsed ? '展开 ▼' : '收起 ▲'}</span>}
+          >
+            {!adjustCollapsed && <>
             {/* 立绘大小 */}
             <div style={{ marginBottom: 10 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -779,7 +796,7 @@ function App() {
                   </Tooltip>
                 </Space>
               </label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
                 <Segmented
                   value={outputQuality}
                   onChange={setOutputQuality}
@@ -793,8 +810,8 @@ function App() {
                   size="middle"
                 />
               </div>
-              <div style={{ marginTop: 10 }}>
-                <label style={{ display: 'block', marginBottom: 4, fontWeight: 500, fontSize: 13 }}>
+              <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <label style={{ fontWeight: 500, fontSize: 13 }}>
                   <Tooltip title="对立绘做平行四边形裁剪并羽化边缘，适用于不透明矩形素材">
                     <Space size={4}>
                       裁剪羽化
@@ -817,11 +834,12 @@ function App() {
                 <Button type="primary" icon={<DownloadOutlined />} onClick={handleDownload} loading={loading} disabled={!hasRendered} size="middle" block>下载</Button>
               </Col>
             </Row>
+            </>}{/* adjustCollapsed end */}
           </Card>
         </Col>
 
         {/* ========== 右列：预览 ========== */}
-        <Col xs={24} md={17}>
+        <Col xs={24} lg={17}>
           <Card title="图像预览" styles={{ body: { padding: '0px' } }}>
             <div style={{ textAlign: 'center', position: 'relative' }}>
               <canvas
@@ -901,7 +919,8 @@ function App() {
       </Modal>
 
       {/* 页脚 */}
-      <footer style={{ marginTop: 'auto', padding: '8px', background: '#fafafa', borderRadius: '8px' }}>
+      <div style={{ flex: 1, minHeight: 32 }} />
+      <footer style={{ padding: '8px', background: '#fafafa', borderRadius: '8px' }}>
         <Row justify="space-between" align="middle">
           <Col>
             <div style={{ fontSize: 14, color: '#8c8c8c' }}>© 2026 ArkCharArt</div>
