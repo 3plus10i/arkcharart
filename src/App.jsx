@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { Select, Button, Card, Row, Col, Slider, message, Upload, Tooltip, Space, Spin, Modal, Form, Input, Segmented, Switch } from 'antd'
-import { DownloadOutlined, ReloadOutlined, UploadOutlined, InfoCircleOutlined, CheckOutlined, DownOutlined, UpOutlined } from '@ant-design/icons'
+import { DownloadOutlined, ReloadOutlined, UploadOutlined, InfoCircleOutlined, CheckOutlined } from '@ant-design/icons'
 import iconUrl from '/icon.png'
 import { composeImage } from './lib/composeImage'
 
@@ -612,10 +612,10 @@ function App() {
               </div>
             )}
 
-            {/* 角色 + 立绘 + 确认 */}
+            {/* 角色 + 立绘 */}
             {selectedComefrom && (
               <Row gutter={[8, 8]} style={{ marginBottom: 8 }}>
-                <Col span={12}>
+                <Col span={14}>
                   <Select
                     style={{ width: '100%' }}
                     placeholder="输入名字搜索 / 选择角色"
@@ -636,7 +636,7 @@ function App() {
                     ))}
                   </Select>
                 </Col>
-                <Col span={7}>
+                <Col span={10}>
                   <Select
                     style={{ width: '100%' }}
                     placeholder="立绘"
@@ -649,19 +649,44 @@ function App() {
                     ))}
                   </Select>
                 </Col>
-                <Col span={5}>
-                  <Button
-                    type="primary"
-                    icon={<CheckOutlined />}
-                    onClick={handleConfirmSelection}
-                    disabled={!pendingChar || !pendingSkinCode}
-                    block
-                  >
-                    <span className="confirm-btn-text">确定</span>
-                  </Button>
-                </Col>
               </Row>
             )}
+
+            {/* 角色信息 */}
+            {pendingCharRecord && (() => {
+              const r = pendingCharRecord
+              const infoFields = r.信息
+                ? Object.entries(r.信息)
+                    .filter(([, v]) => v != null && v !== '')
+                    .map(([k, v]) => {
+                      if (k === '星级') return { label: k, value: '★'.repeat(v) }
+                      return { label: k, value: String(v) }
+                    })
+                : []
+              const fields = [
+                { label: '角色名', value: r.角色名, bold: true },
+                { label: '外文名', value: r.外文名 },
+                { label: '出处', value: r.出处 },
+                ...infoFields,
+              ].filter(f => f.value)
+              return fields.length > 0 ? (
+                <Card size="small" style={{ marginTop: 8, marginBottom: 8 }}
+                  title={<span style={{ fontSize: 13 }}>角色信息</span>}
+                  extra={<span onClick={() => setCharInfoCollapsed(v => !v)} style={{ cursor: 'pointer', fontSize: 13 }}>{charInfoCollapsed ? '展开 ▼' : '收起 ▲'}</span>}
+                >
+                  {!charInfoCollapsed && (
+                  <Row gutter={[16, 8]}>
+                    {fields.map(f => (
+                      <Col className="char-info-col" xs={12} sm={8} key={f.label}>
+                        <span style={{ color: '#8c8c8c', marginRight: 8, fontSize: 13 }}>{f.label}</span>
+                        <span style={f.bold ? { fontWeight: 500 } : { fontSize: 13 }}>{f.value}</span>
+                      </Col>
+                    ))}
+                  </Row>
+                  )}
+                </Card>
+              ) : null
+            })()}
 
             {/* Logo选择 */}
             <div style={{ marginTop: 8 }}>
@@ -698,41 +723,19 @@ function App() {
               </Select>
             </div>
 
-            {/* 角色信息 */}
-            {confirmedCharRecord && (() => {
-              const r = confirmedCharRecord
-              const infoFields = r.信息
-                ? Object.entries(r.信息)
-                    .filter(([, v]) => v != null && v !== '')
-                    .map(([k, v]) => {
-                      if (k === '星级') return { label: k, value: '★'.repeat(v) }
-                      return { label: k, value: String(v) }
-                    })
-                : []
-              const fields = [
-                { label: '角色名', value: r.角色名, bold: true },
-                { label: '外文名', value: r.外文名 },
-                { label: '出处', value: r.出处 },
-                ...infoFields,
-              ].filter(f => f.value)
-              return fields.length > 0 ? (
-                <Card size="small" style={{ marginTop: 12 }}
-                  title={<span style={{ fontSize: 13 }}>角色信息</span>}
-                  extra={<span onClick={() => setCharInfoCollapsed(v => !v)} style={{ cursor: 'pointer', fontSize: 13 }}>{charInfoCollapsed ? '展开 ▼' : '收起 ▲'}</span>}
-                >
-                  {!charInfoCollapsed && (
-                  <Row gutter={[16, 8]}>
-                    {fields.map(f => (
-                      <Col className="char-info-col" xs={12} sm={8} key={f.label}>
-                        <span style={{ color: '#8c8c8c', marginRight: 8, fontSize: 13 }}>{f.label}</span>
-                        <span style={f.bold ? { fontWeight: 500 } : { fontSize: 13 }}>{f.value}</span>
-                      </Col>
-                    ))}
-                  </Row>
-                  )}
-                </Card>
-              ) : null
-            })()}
+            {/* 确认按钮 */}
+            {selectedComefrom && (
+              <Button
+                type="primary"
+                icon={<CheckOutlined />}
+                onClick={handleConfirmSelection}
+                disabled={!pendingChar || !pendingSkinCode}
+                block
+                style={{ marginTop: 8 }}
+              >
+                确定
+              </Button>
+            )}
             </>}{/* resourceCollapsed end */}
           </Card>
           <Card title="图像调整"

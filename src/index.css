@@ -23,11 +23,8 @@ body {
   overscroll-behavior: contain;
 }
 
-/* 窄屏时隐藏确定按钮文字，只显示图标 */
+/* 角色信息列：超窄屏时单列 */
 @media (max-width: 400px) {
-  .confirm-btn-text {
-    display: none;
-  }
   .char-info-col {
     flex: 0 0 100% !important;
     max-width: 100% !important;
