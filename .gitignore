@@ -5,3 +5,5 @@ dist/
 .vscode
 node_modules
 package-lock.json
+arts_data.json
+logo_data.json
