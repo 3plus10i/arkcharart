@@ -2,8 +2,8 @@
  * 合成图片核心函数
  * 按照以下图层顺序绘制：
  * 1. 底图
- * 2. 背景大立绘（带alpha通道蒙版 + 白色渐变遮罩，只对立绘可见像素生效）
- * 3. 阵营图标（带阴影）
+ * 2. 背景大立绘（带alpha通道蒙版 + 白色遮罩，只对立绘可见像素生效）
+ * 3. 阵营图标（带阴影 + 模糊 + 白色蒙版）
  * 4. 中心人物立绘
  */
 
@@ -17,8 +17,9 @@ import {
   LOGO_SHADOW_INTENSITY,
   LOGO_SHADOW_BLUR,
   LOGO_SHADOW_COLOR,
-  DEFAULT_OVERLAY_ALPHA_LEFT,
-  DEFAULT_OVERLAY_ALPHA_RIGHT,
+  LOGO_BLUR,
+  BG_OVERLAY_ALPHA,
+  LOGO_OVERLAY_ALPHA,
   DEFAULT_CENTER_CHAR_X,
   DEFAULT_CENTER_CHAR_Y,
   DEFAULT_CENTER_CHAR_HEIGHT_SCALE,
@@ -44,10 +45,6 @@ function createClipFeatherMask(imgW, imgH, imgX, imgY, canvasW, canvasH) {
 
   maskCtx.filter = `blur(${blurPx}px)`
   maskCtx.beginPath()
-  // maskCtx.moveTo(imgX + CLIP_K * imgW + pad, imgY + pad)
-  // maskCtx.lineTo(imgX + imgW + pad, imgY + pad)
-  // maskCtx.lineTo(imgX + (1 - CLIP_K) * imgW + pad, imgY + imgH + pad)
-  // maskCtx.lineTo(imgX + pad, imgY + imgH + pad)
   maskCtx.moveTo(imgX + CLIP_K * imgW + pad + blurPx, imgY + pad + blurPx)
   maskCtx.lineTo(imgX + imgW + pad - blurPx, imgY + pad + blurPx)
   maskCtx.lineTo(imgX + (1 - CLIP_K) * imgW + pad - blurPx, imgY + imgH + pad - blurPx)
@@ -93,10 +90,6 @@ function applyClipFeather(img) {
 
   maskCtx.filter = `blur(${blurPx}px)`
   maskCtx.beginPath()
-  // maskCtx.moveTo(CLIP_K * w + pad, pad)
-  // maskCtx.lineTo(w + pad, pad)
-  // maskCtx.lineTo((1 - CLIP_K) * w + pad, h + pad)
-  // maskCtx.lineTo(pad, h + pad)
   maskCtx.moveTo(CLIP_K * w + pad + blurPx, pad + blurPx)
   maskCtx.lineTo(w + pad - blurPx, pad + blurPx)
   maskCtx.lineTo((1 - CLIP_K) * w + pad - blurPx, h + pad - blurPx)
@@ -243,12 +236,9 @@ export async function composeImage(canvas, baseImagePath, charImagePath, logoIma
     // 3a. 在离屏Canvas上绘制背景大立绘（用原图）
     offCtx.drawImage(charImg, bgCharX, bgCharY, bgCharSize.width, bgCharSize.height)
 
-    // 3b. 对立绘可见像素混合白色渐变
+    // 3b. 对立绘可见像素混合白色
     offCtx.globalCompositeOperation = 'source-atop'
-    const gradient = offCtx.createLinearGradient(0, 0, canvasWidth, 0)
-    gradient.addColorStop(0, `rgba(255, 255, 255, ${DEFAULT_OVERLAY_ALPHA_LEFT})`)
-    gradient.addColorStop(1, `rgba(255, 255, 255, ${DEFAULT_OVERLAY_ALPHA_RIGHT})`)
-    offCtx.fillStyle = gradient
+    offCtx.fillStyle = `rgba(255, 255, 255, ${BG_OVERLAY_ALPHA})`
     offCtx.fillRect(0, 0, canvasWidth, canvasHeight)
     offCtx.globalCompositeOperation = 'source-over'
 
@@ -270,19 +260,37 @@ export async function composeImage(canvas, baseImagePath, charImagePath, logoIma
       const logoX = canvasWidth * DEFAULT_LOGO_X - logoSize.width / 2
       const logoY = canvasHeight * DEFAULT_LOGO_Y - logoSize.height / 2
       
-      // 设置阴影效果
+      // 使用离屏Canvas：先绘制Logo（带阴影/模糊），再对其可见像素混合白色蒙版
+      const logoScreen = document.createElement('canvas')
+      logoScreen.width = canvasWidth
+      logoScreen.height = canvasHeight
+      const logoCtx = logoScreen.getContext('2d')
+      
+      // 4a. 绘制Logo（带阴影和模糊效果）
       if (LOGO_SHADOW_INTENSITY > 0) {
-        ctx.shadowBlur = LOGO_SHADOW_BLUR * LOGO_SHADOW_INTENSITY
-        ctx.shadowColor = LOGO_SHADOW_COLOR
-        ctx.shadowOffsetX = 0
-        ctx.shadowOffsetY = 0
+        logoCtx.shadowBlur = LOGO_SHADOW_BLUR * LOGO_SHADOW_INTENSITY
+        logoCtx.shadowColor = LOGO_SHADOW_COLOR
+        logoCtx.shadowOffsetX = 0
+        logoCtx.shadowOffsetY = 0
+      }
+      if (LOGO_BLUR > 0) {
+        const blurPx = Math.round(LOGO_BLUR * canvasHeight)
+        logoCtx.filter = `blur(${blurPx}px)`
+      }
+      logoCtx.drawImage(logoImg, logoX, logoY, logoSize.width, logoSize.height)
+      logoCtx.shadowBlur = 0
+      logoCtx.filter = 'none'
+      
+      // 4b. 对Logo可见像素混合白色蒙版
+      if (LOGO_OVERLAY_ALPHA > 0) {
+        logoCtx.globalCompositeOperation = 'source-atop'
+        logoCtx.fillStyle = `rgba(255, 255, 255, ${LOGO_OVERLAY_ALPHA})`
+        logoCtx.fillRect(0, 0, canvasWidth, canvasHeight)
+        logoCtx.globalCompositeOperation = 'source-over'
       }
       
-      // 绘制Logo
-      ctx.drawImage(logoImg, logoX, logoY, logoSize.width, logoSize.height)
-      
-      // 重置阴影设置
-      ctx.shadowBlur = 0
+      // 4c. 绘制到主Canvas
+      ctx.drawImage(logoScreen, 0, 0)
     }
 
     // 5. 绘制中心人物立绘（图层4）

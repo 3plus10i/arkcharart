@@ -165,7 +165,9 @@ generateImage() → composeImage()
 | `DEFAULT_LOGO_X/Y` | 0.15 / 0.2 | Logo 位置 |
 | `DEFAULT_LOGO_HEIGHT_SCALE` | 0.75 | Logo 高度比 |
 | `LOGO_SHADOW_*` | blur=20, color=rgba(0,0,0,0.5) | Logo 阴影 |
-| `DEFAULT_OVERLAY_ALPHA_LEFT/RIGHT` | 0.5 / 0.7 | 白色遮罩两端不透明度 |
+| `LOGO_OVERLAY_ALPHA` | 0.5 | Logo 白色遮罩不透明度 |
+| `LOGO_BLUR` | 0.002 | Logo 模糊强度（占图片高度的比例） |
+| `BG_OVERLAY_ALPHA` | 0.7 | 背景白色遮罩不透明度 |
 | `CLIP_K` | 0.25 | 裁剪平行四边形参数 |
 | `BLUR_RADIUS` | 0.05 | 羽化半径（占图片短边的比例） |
 
