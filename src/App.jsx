@@ -33,10 +33,10 @@ function App() {
   // 出处筛选器
   const [selectedComefrom, setSelectedComefrom] = useState('')
   // 条件子筛选器
-  const [selectedProfession, setSelectedProfession] = useState('')
-  const [selectedBranch, setSelectedBranch] = useState('')
-  const [selectedStar, setSelectedStar] = useState('')
-  const [selectedGender, setSelectedGender] = useState('')
+  const [selectedProfession, setSelectedProfession] = useState('不限')
+  const [selectedBranch, setSelectedBranch] = useState('不限')
+  const [selectedStar, setSelectedStar] = useState('不限')
+  const [selectedGender, setSelectedGender] = useState('不限')
   // 角色和立绘选择（这些是"暂存"状态，点确认后才生效）
   const [pendingChar, setPendingChar] = useState('')
   const [pendingSkinCode, setPendingSkinCode] = useState('')
@@ -238,6 +238,20 @@ function App() {
     }
   }, [pendingChar, pendingCharRecord])
 
+  // ==================== 筛选条件变化时自动选第一个角色 ====================
+  useEffect(() => {
+    if (!selectedComefrom) return
+    if (filteredCharNames.length === 0) {
+      setPendingChar('')
+      setPendingSkinCode('')
+      return
+    }
+    // 当前角色在筛选结果中有效则保留
+    if (pendingChar && filteredCharNames.includes(pendingChar)) return
+    // 否则自动选择第一个匹配角色
+    setPendingChar(filteredCharNames[0])
+  }, [selectedComefrom, filteredCharNames, pendingChar])
+
   // ==================== 确认选择 ====================
   const handleConfirmSelection = () => {
     if (!pendingChar || !pendingSkinCode) {
@@ -249,10 +263,10 @@ function App() {
   }
 
   const handleSelectorReset = () => {
-    setSelectedProfession('')
-    setSelectedBranch('')
-    setSelectedStar('')
-    setSelectedGender('')
+    setSelectedProfession('不限')
+    setSelectedBranch('不限')
+    setSelectedStar('不限')
+    setSelectedGender('不限')
     setPendingChar('')
     setPendingSkinCode('')
   }
@@ -304,10 +318,10 @@ function App() {
         setUploadedImages(newList)
         // 上传后自动选择并确认，同时重置筛选器
         setSelectedComefrom('用户上传')
-        setSelectedProfession('')
-        setSelectedBranch('')
-        setSelectedStar('')
-        setSelectedGender('')
+        setSelectedProfession('不限')
+        setSelectedBranch('不限')
+        setSelectedStar('不限')
+        setSelectedGender('不限')
         setPendingChar(charName)
         setPendingSkinCode('1')
         setConfirmedChar(charName)
@@ -450,9 +464,9 @@ function App() {
     message.success('下载开始')
   }
 
-  // Logo选择值
+  // Logo选择值（auto模式下跟随暂存角色实时变动）
   const logoSelectValue = selectedLogo === null
-    ? (confirmedCharRecord?.logo || undefined)
+    ? (pendingCharRecord?.logo || undefined)
     : selectedLogo
 
   // Logo 缩略图背景色
@@ -499,10 +513,10 @@ function App() {
                   value={selectedComefrom || undefined}
                   onChange={(val) => {
                     setSelectedComefrom(val)
-                    setSelectedProfession('')
-                    setSelectedBranch('')
-                    setSelectedStar('')
-                    setSelectedGender('')
+                    setSelectedProfession('不限')
+                    setSelectedBranch('不限')
+                    setSelectedStar('不限')
+                    setSelectedGender('不限')
                     setPendingChar('')
                     setPendingSkinCode('')
                   }}
@@ -541,9 +555,20 @@ function App() {
                       value={selectedProfession || undefined}
                       onChange={(val) => {
                         setSelectedProfession(val)
-                        setSelectedBranch('')
                         setPendingChar('')
                         setPendingSkinCode('')
+                        // 职业变化时级联到第一个分支
+                        if (val && val !== '不限') {
+                          const branches = [...new Set(
+                            comefromCharList
+                              .filter(c => c.信息?.职业 === val)
+                              .map(c => c.信息?.分支)
+                              .filter(Boolean)
+                          )].sort()
+                          setSelectedBranch(branches[0] || '不限')
+                        } else {
+                          setSelectedBranch('不限')
+                        }
                       }}
                       allowClear
                       size="small"
@@ -737,7 +762,7 @@ function App() {
                 block
                 style={{ marginTop: 8 }}
               >
-                确定
+                合成图像
               </Button>
             )}
             </div></div>{/* resourceCollapsed end */}
@@ -881,7 +906,7 @@ function App() {
               )}
               {!hasRendered && (
                 <div style={{ height: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999' }}>
-                  选择角色和立绘后点击"确定"生成预览
+                  选择角色和立绘后点击"合成图像"生成预览
                 </div>
               )}
             </div>
