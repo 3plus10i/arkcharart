@@ -61,6 +61,9 @@ function App() {
   const [pendingUploadFile, setPendingUploadFile] = useState(null)
   const [pendingUploadDataUrl, setPendingUploadDataUrl] = useState('')
 
+  // ==================== 版权声明模态框状态 ====================
+  const [copyrightModalOpen, setCopyrightModalOpen] = useState(false)
+
   // ==================== 数据加载 ====================
   const [logoData, setLogoData] = useState([])
 
@@ -969,12 +972,33 @@ function App() {
         </Form>
       </Modal>
 
+      {/* 版权声明模态框 */}
+      <Modal
+        title="版权声明"
+        open={copyrightModalOpen}
+        onOk={() => setCopyrightModalOpen(false)}
+        onCancel={() => setCopyrightModalOpen(false)}
+        okText="确认"
+        cancelText="取消"
+      >
+        <div style={{ lineHeight: '1.8', marginTop: 16 }}>
+          <p>本项目中涉及明日方舟、明日方舟：终末地角色立绘和图标之素材资源版权归属 上海鹰角网络有限公司 所有。不得用于商业用途，不得损害版权方的利益。</p>
+          <p>合成图片的元素组织形式，背景图案设计为本项目原创，遵循项目开源协议。</p>
+        </div>
+      </Modal>
+
       {/* 页脚 */}
       <div style={{ flex: 1, minHeight: 32 }} />
       <footer style={{ padding: '8px', background: '#fafafa', borderRadius: '8px' }}>
         <Row justify="space-between" align="middle">
           <Col>
-            <div style={{ fontSize: 14, color: '#8c8c8c' }}>© 2026 ArkCharArt</div>
+            <div style={{ fontSize: 14, color: '#8c8c8c', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span>© 2026 ArkCharArt</span>
+              <span style={{ color: '#d9d9d9' }}>|</span>
+              <a onClick={() => setCopyrightModalOpen(true)} style={{ color: '#1890ff', cursor: 'pointer', textDecoration: 'underline' }}>
+                版权声明
+              </a>
+            </div>
           </Col>
           <Col>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
