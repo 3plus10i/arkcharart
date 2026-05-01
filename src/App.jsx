@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { Select, Button, Card, Row, Col, Slider, message, Upload, Tooltip, Space, Spin, Modal, Form, Input, Segmented, Switch } from 'antd'
+import { Select, Button, Card, Row, Col, Slider, message, Upload, Tooltip, Space, Spin, Modal, Form, Input, Segmented, Switch, Popover } from 'antd'
 import { DownloadOutlined, ReloadOutlined, UploadOutlined, InfoCircleOutlined, CheckOutlined } from '@ant-design/icons'
 import iconUrl from '/icon.png'
 import { composeImage } from './lib/composeImage'
@@ -51,6 +51,9 @@ function App() {
   const [resourceCollapsed, setResourceCollapsed] = useState(false)
   const [charInfoCollapsed, setCharInfoCollapsed] = useState(false)
   const [adjustCollapsed, setAdjustCollapsed] = useState(false)
+
+  // ==================== Logo弹出面板 ====================
+  const [logoPopoverOpen, setLogoPopoverOpen] = useState(false)
 
   // ==================== 上传模态框状态 ====================
   const [uploadModalOpen, setUploadModalOpen] = useState(false)
@@ -464,24 +467,6 @@ function App() {
     message.success('下载开始')
   }
 
-  // Logo选择值（auto模式下跟随暂存角色实时变动）
-  const logoSelectValue = selectedLogo === null
-    ? (pendingCharRecord?.logo || undefined)
-    : selectedLogo
-
-  // Logo 缩略图背景色
-  const logoThumbStyle = {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
-    background: '#595959',
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-    overflow: 'hidden'
-  }
-
   return (
     <div style={{ padding: '16px 24px', maxWidth: 1800, margin: '0 auto', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <h1 style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -698,7 +683,7 @@ function App() {
               ].filter(f => f.value)
               return fields.length > 0 ? (
                 <Card size="small" style={{ marginTop: 8, marginBottom: 8 }}
-                  styles={{ body: { padding: charInfoCollapsed ? 0 : undefined } }}
+                  styles={{ body: { padding: charInfoCollapsed ? 0 : 8 }, header: { minHeight: 0 } }}
                   title={<span style={{ fontSize: 13 }}>角色信息</span>}
                   extra={<span onClick={() => setCharInfoCollapsed(v => !v)} style={{ cursor: 'pointer', fontSize: 13, color: '#888' }}>{charInfoCollapsed ? '展开 ▼' : '收起 ▲'}</span>}
                 >
@@ -718,53 +703,85 @@ function App() {
             })()}
 
             {/* Logo选择 */}
-            <div style={{ marginTop: 8 }}>
-              <label style={{ display: 'block', marginBottom: 4, fontWeight: 500, fontSize: 13 }}>
-                Logo
-              </label>
-              <Select
-                style={{ width: '100%' }}
-                placeholder="选择Logo（默认本家）"
-                value={logoSelectValue || undefined}
-                onChange={(val) => setSelectedLogo(val === '' ? '' : val)}
-                allowClear
-                showSearch
-                filterOption={(input, option) =>
-                  option.children?.toString().toLowerCase().includes(input.toLowerCase())
-                }
-              >
-                <Option value="">(无logo)</Option>
-                {logos.map(logo => (
-                  <Option key={logo} value={logo}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                      <span style={logoThumbStyle}>
-                        <img
-                          src={`logos/${logo}.${logoExtMap[logo] || 'png'}`}
-                          alt=""
-                          style={{ width: 16, height: 16, objectFit: 'contain', filter: 'brightness(10)' }}
-                          onError={(e) => { e.target.style.display = 'none' }}
-                        />
-                      </span>
-                      {logo}
-                    </span>
-                  </Option>
-                ))}
-              </Select>
+            <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
+              <div style={{ flex: 7, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <label style={{ whiteSpace: 'nowrap', fontWeight: 500, fontSize: 13 }}>
+                  Logo
+                </label>
+                <div style={{ flex: 1 }}>
+                  <Popover
+                  open={logoPopoverOpen}
+                  onOpenChange={setLogoPopoverOpen}
+                  trigger="click"
+                  placement="bottomLeft"
+                  content={
+                    <div className="logo-grid">
+                      {/* (无logo) 选项 */}
+                      <div
+                        className={`logo-grid-item${selectedLogo === '' ? ' active' : ''}`}
+                        onClick={() => { setSelectedLogo(''); setLogoPopoverOpen(false) }}
+                      >
+                        <div className="logo-grid-icon">⊘</div>
+                        <span className="logo-grid-label" style={{ color: '#999' }}>无logo</span>
+                      </div>
+                      {logos.map(logo => {
+                        const auto = selectedLogo === null && pendingCharRecord?.logo === logo
+                        const active = selectedLogo === logo || auto
+                        return (
+                          <div
+                            key={logo}
+                            className={`logo-grid-item${active ? ' active' : ''}`}
+                            onClick={() => { setSelectedLogo(logo); setLogoPopoverOpen(false) }}
+                          >
+                            <span className="logo-thumb">
+                              <img
+                                src={`logos/${logo}.${logoExtMap[logo] || 'png'}`}
+                                alt=""
+                                style={{ width: 28, height: 28 }}
+                                onError={(e) => { e.target.style.display = 'none' }}
+                              />
+                            </span>
+                            <span className="logo-grid-label" style={{ maxWidth: 60, textAlign: 'center' }}>{logo}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  }
+                >
+                  <Button className="logo-trigger-btn">
+                    {(() => {
+                      if (selectedLogo === '') return <span style={{ color: '#999' }}>(无logo)</span>
+                      const currentLogo = selectedLogo || pendingCharRecord?.logo
+                      if (currentLogo) {
+                        return (
+                          <>
+                            <span className="logo-thumb">
+                              <img src={`logos/${currentLogo}.${logoExtMap[currentLogo] || 'png'}`} alt="" style={{ width: 16, height: 16 }} onError={(e) => { e.target.style.display = 'none' }} />
+                            </span>
+                            <span>{currentLogo}</span>
+                          </>
+                        )
+                      }
+                      return <span style={{ color: '#bfbfbf' }}>选择Logo</span>
+                    })()}
+                  </Button>
+                </Popover>
+              </div>
             </div>
-
-            {/* 确认按钮 */}
             {selectedComefrom && (
-              <Button
-                type="primary"
-                icon={<CheckOutlined />}
-                onClick={handleConfirmSelection}
-                disabled={!pendingChar || !pendingSkinCode}
-                block
-                style={{ marginTop: 8 }}
-              >
-                合成图像
-              </Button>
-            )}
+                <div style={{ flex: 3 }}>
+                  <Button
+                    type="primary"
+                    icon={<CheckOutlined />}
+                    onClick={handleConfirmSelection}
+                    disabled={!pendingChar || !pendingSkinCode}
+                    block
+                  >
+                    合成图像
+                  </Button>
+                </div>
+              )}
+            </div>
             </div></div>{/* resourceCollapsed end */}
           </Card>
           <Card title="图像调整"
