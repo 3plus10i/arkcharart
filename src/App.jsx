@@ -474,7 +474,7 @@ function App() {
         立绘合成工具
       </h1>
 
-      <Row gutter={[20, 20]}>
+      <Row gutter={[20, 20]} style={{ flex: 1, minHeight: 0 }}>
         {/* ========== 左列：功能区 ========== */}
         <Col xs={24} lg={7}>
           {/* 资源选择 */}
@@ -861,7 +861,7 @@ function App() {
                   size="middle"
                 />
               </div>
-              <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <label style={{ fontWeight: 500, fontSize: 13 }}>
                   <Tooltip title="对立绘做平行四边形裁剪并羽化边缘，适用于不透明矩形素材">
                     <Space size={4}>
@@ -870,7 +870,7 @@ function App() {
                     </Space>
                   </Tooltip>
                 </label>
-                <Switch size="small" checked={clipFeather} onChange={setClipFeather} />
+                <Switch size="middle" checked={clipFeather} onChange={setClipFeather} />
               </div>
             </div>
 
@@ -891,14 +891,14 @@ function App() {
 
         {/* ========== 右列：预览 ========== */}
         <Col xs={24} lg={17}>
-          <Card title="图像预览" styles={{ body: { padding: '0px' } }}>
-            <div style={{ textAlign: 'center', position: 'relative' }}>
+          <Card title="图像预览" styles={{ body: { padding: '0px', display: 'flex', flexDirection: 'column', flex: 1 } }}>
+            <div style={{ textAlign: 'center', position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
               <canvas
                 ref={canvasRef}
                 style={{
                   display: hasRendered ? 'block' : 'none',
-                  maxWidth: '100%',
-                  maxHeight: '80vh',
+                  width: '100%',
+                  height: '100%',
                   objectFit: 'contain',
                   margin: '0 auto',
                   borderRadius: 8,
@@ -922,7 +922,7 @@ function App() {
                 </div>
               )}
               {!hasRendered && (
-                <div style={{ height: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999' }}>
+                <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999' }}>
                   选择角色和立绘后点击"合成图像"生成预览
                 </div>
               )}
