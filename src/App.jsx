@@ -628,7 +628,7 @@ function App() {
             )}
 
             {/* 角色 + 立绘 */}
-            {selectedComefrom && (
+            {selectedComefrom && (<>
               <Row gutter={[8, 8]} style={{ marginBottom: 8 }}>
                 <Col span={14}>
                   <Select
@@ -665,7 +665,7 @@ function App() {
                   </Select>
                 </Col>
               </Row>
-            )}
+            </>)}
 
             {/* 角色信息 */}
             {pendingCharRecord && (() => {
@@ -678,11 +678,14 @@ function App() {
                       return { label: k, value: String(v) }
                     })
                 : []
+              const currentSkin = pendingSkinCode ? pendingCharartList?.find(a => a.编号 === pendingSkinCode) : null
               const fields = [
                 { label: '角色名', value: r.角色名, bold: true },
                 { label: '外文名', value: r.外文名 },
                 { label: '出处', value: r.出处 },
                 ...infoFields,
+                ...(currentSkin?.时装品牌 ? [{ label: '时装品牌', value: currentSkin.时装品牌, bold: true }] : []),
+                ...(currentSkin?.时装名 ? [{ label: '时装名', value: currentSkin.时装名 }] : []),
               ].filter(f => f.value)
               return fields.length > 0 ? (
                 <Card size="small" style={{ marginTop: 8, marginBottom: 8 }}

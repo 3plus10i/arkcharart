@@ -212,6 +212,8 @@ function convertCsvToJson(csvPath, jsonPath, builtinFiles) {
         '文件名': filename,
         '文件链接': row['文件链接'] || '',
         '内置': isBuiltin,
+        '时装品牌': row['时装品牌'] || '',
+        '时装名': row['时装名'] || '',
       });
       if (source && source in sourceStats) {
         sourceStats[source]['立绘数'] += 1;
