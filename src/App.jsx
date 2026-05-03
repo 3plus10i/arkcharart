@@ -65,8 +65,8 @@ function App() {
   const [pendingUploadFile, setPendingUploadFile] = useState(null)
   const [pendingUploadDataUrl, setPendingUploadDataUrl] = useState('')
 
-  // ==================== 版权声明模态框状态 ====================
-  const [copyrightModalOpen, setCopyrightModalOpen] = useState(false)
+  // ==================== 关于模态框状态 ====================
+  const [aboutModalOpen, setAboutModalOpen] = useState(false)
 
   // ==================== 数据加载 ====================
   const [logoData, setLogoData] = useState([])
@@ -1098,18 +1098,50 @@ function App() {
         </Form>
       </Modal>
 
-      {/* 版权声明模态框 */}
+      {/* 关于模态框 */}
       <Modal
-        title="版权声明"
-        open={copyrightModalOpen}
-        onOk={() => setCopyrightModalOpen(false)}
-        onCancel={() => setCopyrightModalOpen(false)}
+        title="关于"
+        open={aboutModalOpen}
+        onOk={() => setAboutModalOpen(false)}
+        onCancel={() => setAboutModalOpen(false)}
         okText="确认"
         cancelText="取消"
+        width={600}
       >
         <div style={{ lineHeight: '1.8', marginTop: 16 }}>
+          <h4>版权声明</h4>
           <p>本项目中涉及明日方舟、明日方舟：终末地角色立绘和图标之素材资源版权归属 上海鹰角网络有限公司 所有。不得用于商业用途，不得损害版权方的利益。</p>
           <p>合成图片的元素组织形式，背景图案设计为本项目原创，遵循项目开源协议。</p>
+
+          <hr style={{ margin: '16px 0', border: 'none', borderTop: '1px solid #f0f0f0' }} />
+
+          <h4>美术资源来源</h4>
+          <ul style={{ paddingLeft: 20 }}>
+            <li>
+              时装回廊 - PRTS - 玩家共同构筑的明日方舟中文Wiki：<br />
+              <a href="https://prts.wiki/w/%E6%97%B6%E8%A3%85%E5%9B%9E%E5%BB%8A" target="_blank" rel="noopener noreferrer">
+                https://prts.wiki/w/时装回廊
+              </a>
+            </li>
+            <li style={{ marginTop: 8 }}>
+              PRTS:文件一览 - PRTS - 玩家共同构筑的明日方舟中文Wiki：<br />
+              <a href="https://prts.wiki/w/PRTS:%E6%96%87%E4%BB%B6%E4%B8%80%E8%A7%88#%E7%B2%BE%E8%8B%B11%E7%AB%8B%E7%BB%98" target="_blank" rel="noopener noreferrer">
+                https://prts.wiki/w/PRTS:文件一览#精1立绘
+              </a>
+            </li>
+            <li style={{ marginTop: 8 }}>
+              剧情角色一览 - PRTS - 玩家共同构筑的明日方舟中文Wiki：<br />
+              <a href="https://prts.wiki/w/%E5%89%A7%E6%83%85%E8%A7%92%E8%89%B2%E4%B8%80%E8%A7%88" target="_blank" rel="noopener noreferrer">
+                https://prts.wiki/w/剧情角色一览
+              </a>
+            </li>
+            <li style={{ marginTop: 8 }}>
+              《明日方舟：终末地》官方网站 - Arknights: Endfield：<br />
+              <a href="https://endfield.hypergryph.com/#operator" target="_blank" rel="noopener noreferrer">
+                https://endfield.hypergryph.com/#operator
+              </a>
+            </li>
+          </ul>
         </div>
       </Modal>
 
@@ -1121,8 +1153,8 @@ function App() {
             <div style={{ fontSize: 14, color: '#8c8c8c', display: 'flex', alignItems: 'center', gap: 8 }}>
               <span>© 2026 ArkCharArt</span>
               <span style={{ color: '#d9d9d9' }}>|</span>
-              <a onClick={() => setCopyrightModalOpen(true)} style={{ color: '#1890ff', cursor: 'pointer', textDecoration: 'underline' }}>
-                版权声明
+              <a onClick={() => setAboutModalOpen(true)} style={{ color: '#1890ff', cursor: 'pointer', textDecoration: 'underline' }}>
+                关于
               </a>
             </div>
           </Col>
