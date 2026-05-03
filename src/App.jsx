@@ -13,6 +13,10 @@ function App() {
   const [charYOffset, setCharYOffset] = useState(0.5)
   const [logoScale, setLogoScale] = useState(1)
   const [selectedLogo, setSelectedLogo] = useState(null) // null=本家, ''=无logo, 其他=指定logo
+  const [logoMode, setLogoMode] = useState('camp') // 'camp'=阵营logo, 'skin'=时装logo
+  const [skinBrandData, setSkinBrandData] = useState([])
+  const [selectedSkinBrand, setSelectedSkinBrand] = useState(null)
+  const [skinBrandPopoverOpen, setSkinBrandPopoverOpen] = useState(false)
   const [outputQuality, setOutputQuality] = useState('1080p')
   const [aspectRatio, setAspectRatio] = useState('16:9')
   const [clipFeather, setClipFeather] = useState(false)
@@ -77,22 +81,33 @@ function App() {
     return map
   }, [logoData])
 
+  const skinBrands = useMemo(() => skinBrandData.map(item => item.brand), [skinBrandData])
+  const skinBrandExtMap = useMemo(() => {
+    const map = {}
+    for (const item of skinBrandData) { map[item.brand] = item.ext }
+    return map
+  }, [skinBrandData])
+
   useEffect(() => {
     const fetchData = async () => {
       setArtsDataLoading(true)
       try {
-        const [artsResp, logoResp] = await Promise.all([
+        const [artsResp, logoResp, skinResp] = await Promise.all([
           fetch('/arts_data.json'),
           fetch('/logo_data.json'),
+          fetch('/skin_brand_data.json'),
         ])
         if (!artsResp.ok) throw new Error(`arts_data HTTP ${artsResp.status}`)
         if (!logoResp.ok) throw new Error(`logo_data HTTP ${logoResp.status}`)
-        const [artsJson, logoJson] = await Promise.all([
+        if (!skinResp.ok) throw new Error(`skin_brand_data HTTP ${skinResp.status}`)
+        const [artsJson, logoJson, skinJson] = await Promise.all([
           artsResp.json(),
           logoResp.json(),
+          skinResp.json(),
         ])
         setArtsData(artsJson)
         setLogoData(logoJson)
+        setSkinBrandData(skinJson)
       } catch (err) {
         console.error('加载数据失败:', err)
         setArtsDataError(err.message)
@@ -210,6 +225,13 @@ function App() {
     return confirmedCharRecord.立绘?.find(p => p.编号 === confirmedSkinCode) || null
   }, [confirmedSkinCode, confirmedCharRecord])
 
+  // 当前暂存皮肤对应的时装品牌（用于UI自动高亮）
+  const pendingAutoSkinBrand = useMemo(() => {
+    if (!pendingSkinCode || !pendingCharRecord) return null
+    const skin = pendingCharRecord.立绘?.find(a => a.编号 === pendingSkinCode)
+    return skin?.时装品牌 || null
+  }, [pendingSkinCode, pendingCharRecord])
+
   // ==================== 默认选择蓝毒 ====================
   useEffect(() => {
     if (isInitialized || !artsData) return
@@ -244,6 +266,18 @@ function App() {
     }
   }, [pendingChar, pendingCharRecord])
 
+  // ==================== 暂存角色变化时自动选中阵营logo ====================
+  useEffect(() => {
+    if (!pendingChar) return
+    setSelectedLogo(null)
+  }, [pendingChar])
+
+  // ==================== 暂存立绘变化时自动选中时装logo ====================
+  useEffect(() => {
+    if (!pendingSkinCode) return
+    setSelectedSkinBrand(null)
+  }, [pendingSkinCode])
+
   // ==================== 筛选条件变化时自动选第一个角色 ====================
   useEffect(() => {
     if (!selectedComefrom) return
@@ -266,6 +300,9 @@ function App() {
     }
     setConfirmedChar(pendingChar)
     setConfirmedSkinCode(pendingSkinCode)
+    // 重置logo选择状态，让系统根据新角色/皮肤自动选择
+    setSelectedLogo(null)
+    setSelectedSkinBrand(null)
   }
 
   const handleSelectorReset = () => {
@@ -275,6 +312,9 @@ function App() {
     setSelectedGender('不限')
     setPendingChar('')
     setPendingSkinCode('')
+    // 重置logo选择
+    setSelectedLogo(null)
+    setSelectedSkinBrand(null)
   }
 
   // ==================== 上传处理 ====================
@@ -333,6 +373,8 @@ function App() {
         setConfirmedChar(charName)
         setConfirmedSkinCode('1')
         setSelectedLogo(null)
+        setLogoMode('camp')
+        setSelectedSkinBrand(null)
         setUploadModalOpen(false)
         uploadForm.resetFields()
         setPendingUploadFile(null)
@@ -363,6 +405,8 @@ function App() {
     setCharYOffset(0.5)
     setLogoScale(1)
     setSelectedLogo(null)
+    setLogoMode('camp')
+    setSelectedSkinBrand(null)
     setOutputQuality('1080p')
     setAspectRatio('16:9')
     setClipFeather(false)
@@ -370,12 +414,6 @@ function App() {
   }
 
   // ==================== 合成图片 ====================
-  const getLogoPath = useCallback((logoName) => {
-    if (!logoName) return null
-    const ext = logoExtMap[logoName] || 'png'
-    return `logos/${logoName}.${ext}`
-  }, [logoExtMap])
-
   const getCanvasSize = (quality, ratio) => {
     const is43 = ratio === '4:3'
     switch (quality) {
@@ -413,18 +451,30 @@ function App() {
     if (!charImage) return
 
     let logoPath = null
-    const effectiveLogo = selectedLogo === null
-      ? (confirmedCharRecord?.logo || '')
-      : selectedLogo
-    if (effectiveLogo) {
-      logoPath = getLogoPath(effectiveLogo)
+    if (logoMode === 'camp') {
+      const effectiveLogo = selectedLogo === null
+        ? (confirmedCharRecord?.logo || '')
+        : selectedLogo
+      if (effectiveLogo) {
+        const ext = logoExtMap[effectiveLogo] || 'png'
+        logoPath = `logos/${effectiveLogo}.${ext}`
+      }
+    } else {
+      const effectiveSkinBrand = selectedSkinBrand === null
+        ? (confirmedCharart?.时装品牌 || '')
+        : selectedSkinBrand
+      if (effectiveSkinBrand) {
+        const ext = skinBrandExtMap[effectiveSkinBrand] || 'png'
+        logoPath = `skin_brand/${effectiveSkinBrand}.${ext}`
+      }
     }
 
     setLoading(true)
     try {
       const bgFile = aspectRatio === '4:3' ? 'bg-4-3.svg' : 'bg-16-9.svg'
       await composeImage(canvas, bgFile, charImage, logoPath, {
-        charScale, charPos, charYOffset, logoScale, charImageFallback, clipFeather
+        charScale, charPos, charYOffset, logoScale, charImageFallback, clipFeather,
+        isBrandLogo: logoMode === 'skin'
       })
       setHasRendered(true)
     } catch (err) {
@@ -434,8 +484,9 @@ function App() {
       setLoading(false)
     }
   }, [confirmedChar, confirmedCharart, confirmedCharRecord,
-      selectedLogo, charScale, charPos, charYOffset, logoScale,
-      uploadedImages, outputQuality, aspectRatio, clipFeather, getLogoPath])
+      selectedLogo, logoMode, selectedSkinBrand, logoExtMap, skinBrandExtMap,
+      charScale, charPos, charYOffset, logoScale,
+      uploadedImages, outputQuality, aspectRatio, clipFeather])
 
   // 确认选择后自动合成
   useEffect(() => {
@@ -444,12 +495,7 @@ function App() {
     return () => clearTimeout(timer)
   }, [generateImage])
 
-  // 参数变化时重新合成（已有确认的角色时）
-  useEffect(() => {
-    if (!confirmedChar || !confirmedSkinCode) return
-    const timer = setTimeout(() => generateImage(), 200)
-    return () => clearTimeout(timer)
-  }, [charScale, charPos, charYOffset, logoScale, selectedLogo, outputQuality, aspectRatio, clipFeather]) // eslint-disable-line react-hooks/exhaustive-deps
+
 
   // 下载
   const handleDownload = () => {
@@ -656,7 +702,9 @@ function App() {
                     style={{ width: '100%' }}
                     placeholder="立绘"
                     value={pendingSkinCode || undefined}
-                    onChange={setPendingSkinCode}
+                    onChange={(val) => {
+                      setPendingSkinCode(val)
+                    }}
                     disabled={!pendingChar || pendingCharartList.length === 0}
                   >
                     {pendingCharartList.map(art => (
@@ -684,7 +732,7 @@ function App() {
                 { label: '外文名', value: r.外文名 },
                 { label: '出处', value: r.出处 },
                 ...infoFields,
-                ...(currentSkin?.时装品牌 ? [{ label: '时装品牌', value: currentSkin.时装品牌, bold: true }] : []),
+                ...(currentSkin?.时装品牌 ? [{ label: '时装品牌', value: currentSkin.时装品牌 }] : []),
                 ...(currentSkin?.时装名 ? [{ label: '时装名', value: currentSkin.时装名 }] : []),
               ].filter(f => f.value)
               return fields.length > 0 ? (
@@ -708,84 +756,160 @@ function App() {
               ) : null
             })()}
 
-            {/* Logo选择 */}
-            <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
-              <div style={{ flex: 7, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <label style={{ whiteSpace: 'nowrap', fontWeight: 500, fontSize: 13 }}>
-                  Logo
-                </label>
-                <div style={{ flex: 1 }}>
-                  <Popover
-                  open={logoPopoverOpen}
-                  onOpenChange={setLogoPopoverOpen}
-                  trigger="click"
-                  placement="bottomLeft"
-                  content={
-                    <div className="logo-grid">
-                      {/* (无logo) 选项 */}
-                      <div
-                        className={`logo-grid-item${selectedLogo === '' ? ' active' : ''}`}
-                        onClick={() => { setSelectedLogo(''); setLogoPopoverOpen(false) }}
-                      >
-                        <div className="logo-grid-icon">⊘</div>
-                        <span className="logo-grid-label" style={{ color: '#999' }}>无logo</span>
-                      </div>
-                      {logos.map(logo => {
-                        const auto = selectedLogo === null && pendingCharRecord?.logo === logo
-                        const active = selectedLogo === logo || auto
-                        return (
-                          <div
-                            key={logo}
-                            className={`logo-grid-item${active ? ' active' : ''}`}
-                            onClick={() => { setSelectedLogo(logo); setLogoPopoverOpen(false) }}
-                          >
-                            <span className="logo-thumb">
-                              <img
-                                src={`logos/${logo}.${logoExtMap[logo] || 'png'}`}
-                                alt=""
-                                style={{ width: 28, height: 28 }}
-                                onError={(e) => { e.target.style.display = 'none' }}
-                              />
-                            </span>
-                            <span className="logo-grid-label" style={{ maxWidth: 60, textAlign: 'center' }}>{logo}</span>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  }
-                >
-                  <Button className="logo-trigger-btn">
-                    {(() => {
-                      if (selectedLogo === '') return <span style={{ color: '#999' }}>(无logo)</span>
-                      const currentLogo = selectedLogo || pendingCharRecord?.logo
-                      if (currentLogo) {
-                        return (
-                          <>
-                            <span className="logo-thumb">
-                              <img src={`logos/${currentLogo}.${logoExtMap[currentLogo] || 'png'}`} alt="" style={{ width: 16, height: 16 }} onError={(e) => { e.target.style.display = 'none' }} />
-                            </span>
-                            <span>{currentLogo}</span>
-                          </>
-                        )
+            {/* Logo 和合成 */}
+            <div style={{ marginTop: 8 }}>
+              {/* 分段选择器纵向 + 两个logo按钮纵向排列 */}
+              <Row gutter={[8, 8]} style={{ marginBottom: 8 }}>
+                <Col flex="none">
+                  <Segmented
+                    value={logoMode}
+                    onChange={(val) => {
+                      setLogoMode(val)
+                      // 切换到时装logo模式时，重置选择让系统自动选中当前皮肤的时装品牌
+                      if (val === 'skin') {
+                        setSelectedSkinBrand(null)
                       }
-                      return <span style={{ color: '#bfbfbf' }}>选择Logo</span>
-                    })()}
-                  </Button>
-                </Popover>
-              </div>
-            </div>
-            {selectedComefrom && (
-                <div style={{ flex: 3 }}>
-                  <Button
-                    type="primary"
-                    icon={<CheckOutlined />}
-                    onClick={handleConfirmSelection}
-                    disabled={!pendingChar || !pendingSkinCode}
-                    block
-                  >
-                    合成图像
-                  </Button>
-                </div>
+                      // 切换到阵营logo模式时，重置选择让系统自动选中角色阵营
+                      if (val === 'camp') {
+                        setSelectedLogo(null)
+                      }
+                    }}
+                    options={[
+                      { label: '阵营logo', value: 'camp' },
+                      { label: '时装logo', value: 'skin' },
+                    ]}
+                    vertical
+                  />
+                </Col>
+                <Col flex="1">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <Popover
+                      open={logoPopoverOpen}
+                      onOpenChange={setLogoPopoverOpen}
+                      trigger="click"
+                      placement="bottomLeft"
+                      content={
+                        <div className="logo-grid">
+                          <div
+                            className={`logo-grid-item${selectedLogo === '' ? ' active' : ''}`}
+                            onClick={() => { setSelectedLogo(''); setLogoPopoverOpen(false) }}
+                          >
+                            <div className="logo-grid-icon">⊘</div>
+                            <span className="logo-grid-label" style={{ color: '#999' }}>无logo</span>
+                          </div>
+                          {logos.map(logo => {
+                            const auto = selectedLogo === null && pendingCharRecord?.logo === logo
+                            const active = selectedLogo === logo || auto
+                            return (
+                              <div
+                                key={logo}
+                                className={`logo-grid-item${active ? ' active' : ''}`}
+                                onClick={() => { setSelectedLogo(logo); setLogoPopoverOpen(false) }}
+                              >
+                                <span className="logo-thumb">
+                                  <img
+                                    src={`logos/${logo}.${logoExtMap[logo] || 'png'}`}
+                                    alt=""
+                                    style={{ width: 28, height: 28 }}
+                                    onError={(e) => { e.target.style.display = 'none' }}
+                                  />
+                                </span>
+                                <span className="logo-grid-label" style={{ maxWidth: 60, textAlign: 'center' }}>{logo}</span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      }
+                    >
+                      <Button className="logo-trigger-btn" style={{ width: '100%' }}>
+                        {(() => {
+                          if (selectedLogo === '') return <span style={{ color: '#999', fontSize: 12 }}>(无logo)</span>
+                          const currentLogo = selectedLogo || pendingCharRecord?.logo
+                          if (currentLogo) {
+                            return (
+                              <>
+                                <span className="logo-thumb" style={{ width: 20, height: 20 }}>
+                                  <img src={`logos/${currentLogo}.${logoExtMap[currentLogo] || 'png'}`} alt="" style={{ width: 14, height: 14 }} onError={(e) => { e.target.style.display = 'none' }} />
+                                </span>
+                                <span style={{ fontSize: 12 }}>{currentLogo}</span>
+                              </>
+                            )
+                          }
+                          return <span style={{ color: '#bfbfbf', fontSize: 12 }}>选择阵营</span>
+                        })()}
+                      </Button>
+                    </Popover>
+                    <Popover
+                      open={skinBrandPopoverOpen}
+                      onOpenChange={setSkinBrandPopoverOpen}
+                      trigger="click"
+                      placement="bottomLeft"
+                      content={
+                        <div className="logo-grid">
+                          <div
+                            className={`logo-grid-item${selectedSkinBrand === '' ? ' active' : ''}`}
+                            onClick={() => { setSelectedSkinBrand(''); setSkinBrandPopoverOpen(false) }}
+                          >
+                            <div className="logo-grid-icon">⊘</div>
+                            <span className="logo-grid-label" style={{ color: '#999' }}>无logo</span>
+                          </div>
+                          {skinBrands.map(brand => {
+                            const auto = selectedSkinBrand === null && pendingAutoSkinBrand === brand
+                            const active = selectedSkinBrand === brand || auto
+                            return (
+                              <div
+                                key={brand}
+                                className={`logo-grid-item${active ? ' active' : ''}`}
+                                onClick={() => { setSelectedSkinBrand(brand); setSkinBrandPopoverOpen(false) }}
+                              >
+                                <span className="logo-thumb">
+                                  <img
+                                    src={`skin_brand/${brand}.${skinBrandExtMap[brand] || 'png'}`}
+                                    alt=""
+                                    style={{ width: 28, height: 28 }}
+                                    onError={(e) => { e.target.style.display = 'none' }}
+                                  />
+                                </span>
+                                <span className="logo-grid-label" style={{ maxWidth: 60, textAlign: 'center' }}>{brand}</span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      }
+                    >
+                      <Button className="logo-trigger-btn" style={{ width: '100%' }}>
+                        {(() => {
+                          if (selectedSkinBrand === '') return <span style={{ color: '#999', fontSize: 12 }}>(无logo)</span>
+                          const currentBrand = selectedSkinBrand || pendingAutoSkinBrand
+                          if (currentBrand) {
+                            return (
+                              <>
+                                <span className="logo-thumb" style={{ width: 20, height: 20 }}>
+                                  <img src={`skin_brand/${currentBrand}.${skinBrandExtMap[currentBrand] || 'png'}`} alt="" style={{ width: 14, height: 14 }} onError={(e) => { e.target.style.display = 'none' }} />
+                                </span>
+                                <span style={{ fontSize: 12 }}>{currentBrand}</span>
+                              </>
+                            )
+                          }
+                          return <span style={{ color: '#bfbfbf', fontSize: 12 }}>选择品牌</span>
+                        })()}
+                      </Button>
+                    </Popover>
+                  </div>
+                </Col>
+              </Row>
+
+              {/* Row 3: 合成按钮 */}
+              {selectedComefrom && (
+                <Button
+                  type="primary"
+                  icon={<CheckOutlined />}
+                  onClick={handleConfirmSelection}
+                  disabled={!pendingChar || !pendingSkinCode}
+                  block
+                >
+                  合成图像
+                </Button>
               )}
             </div>
             </div></div>{/* resourceCollapsed end */}
@@ -868,7 +992,7 @@ function App() {
                 />
               </div>
               <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <label style={{ fontWeight: 500, fontSize: 13 }}>
+                <label style={{ fontWeight: 500, fontSize: 13, whiteSpace: 'nowrap' }}>
                   <Tooltip title="对立绘做平行四边形裁剪并羽化边缘，适用于不透明矩形素材">
                     <Space size={4}>
                       裁剪羽化
@@ -877,20 +1001,19 @@ function App() {
                   </Tooltip>
                 </label>
                 <Switch size="middle" checked={clipFeather} onChange={setClipFeather} />
+                <div style={{ flex: 1 }} />
+                <Tooltip title="重置图像参数">
+                  <Button icon={<ReloadOutlined />} onClick={handleReset} size="middle">重置调整</Button>
+                </Tooltip>
               </div>
             </div>
 
-            {/* 操作按钮 */}
-            <Row gutter={[8, 8]}>
-              <Col span={12}>
-                <Tooltip title="重置图像参数">
-                  <Button icon={<ReloadOutlined />} onClick={handleReset} size="middle" block>重置</Button>
-                </Tooltip>
-              </Col>
-              <Col span={12}>
-                <Button type="primary" icon={<DownloadOutlined />} onClick={handleDownload} loading={loading} disabled={!hasRendered} size="middle" block>下载</Button>
-              </Col>
-            </Row>
+            {/* 下载按钮 */}
+            <div style={{ marginTop: 12 }}>
+              <Button type="primary" icon={<DownloadOutlined />} onClick={handleDownload} loading={loading} disabled={!hasRendered} size="middle" block>
+                下载
+              </Button>
+            </div>
             </div></div>{/* adjustCollapsed end */}
           </Card>
         </Col>

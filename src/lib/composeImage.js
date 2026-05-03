@@ -24,7 +24,9 @@ import {
   DEFAULT_CENTER_CHAR_Y,
   DEFAULT_CENTER_CHAR_HEIGHT_SCALE,
   CLIP_K,
-  BLUR_RADIUS
+  BLUR_RADIUS,
+  FACTION_LOGO_SCALE,
+  BRAND_LOGO_SCALE
 } from '../config.js'
 
 // ==================== 核心函数 ====================
@@ -192,6 +194,8 @@ export async function composeImage(canvas, baseImagePath, charImagePath, logoIma
   const charPos = options.charPos ?? 0.5
   const charYOffset = options.charYOffset ?? 0.5
   const logoScale = options.logoScale ?? 1
+  const isBrandLogo = options.isBrandLogo ?? false
+  const logoPreScale = isBrandLogo ? BRAND_LOGO_SCALE : FACTION_LOGO_SCALE
   const clipFeather = options.clipFeather ?? false
   
   // 计算位置偏移量 (用户50%为基准，计算偏移)
@@ -255,7 +259,7 @@ export async function composeImage(canvas, baseImagePath, charImagePath, logoIma
 
     // 4. 绘制阵营图标（图层3）- 仅在提供logo时绘制
     if (logoImg) {
-      const logoHeight = canvasHeight * DEFAULT_LOGO_HEIGHT_SCALE * logoScale
+      const logoHeight = canvasHeight * DEFAULT_LOGO_HEIGHT_SCALE * logoScale * logoPreScale
       const logoSize = calculateScaledSize(logoImg, logoHeight)
       const logoX = canvasWidth * DEFAULT_LOGO_X - logoSize.width / 2
       const logoY = canvasHeight * DEFAULT_LOGO_Y - logoSize.height / 2

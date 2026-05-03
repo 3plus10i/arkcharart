@@ -76,6 +76,11 @@ body {
   filter: brightness(10);
 }
 
+/* 尽可能让logo-trigger-btn 高度与logo segmented 保持一致*/
+.logo-trigger-btn {
+  height: 28px;
+}
+
 /* 网格项悬浮边框 */
 .logo-grid-item {
   display: flex;

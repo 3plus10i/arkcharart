@@ -40,6 +40,12 @@ export const LOGO_BLUR = 0.002
 /** Logo白色蒙版不透明度 (0=无蒙版) */
 export const LOGO_OVERLAY_ALPHA = 0.4
 
+/** 阵营Logo默认缩放比例 */
+export const FACTION_LOGO_SCALE = 1.0
+
+/** 品牌Logo默认缩放比例 */
+export const BRAND_LOGO_SCALE = 0.6
+
 /** 中心立绘默认水平位置 (0-1) */
 export const DEFAULT_CENTER_CHAR_X = 0.5
 /** 中心立绘默认垂直位置 (0-1) */
