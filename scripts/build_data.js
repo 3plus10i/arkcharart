@@ -1,19 +1,23 @@
 /**
- * 统一构建脚本：生成 arts_data.json 和 logo.js
+ * 统一构建脚本：生成 arts_data.json 和 logo_data.json
  *
  * 功能：
- * 1. 读取 scripts/arts_data.csv
+ * 1. 读取 scripts/arts_data.csv 和 scripts/ark_chars.csv（两个来源的立绘数据）
  * 2. 扫描 public/chararts/，给立绘条目标记 内置: true/false
- * 3. 扫描 public/logos/，生成 logo.js
+ * 3. 扫描 public/logos/，生成 logo_data.json
  * 4. 生成 public/arts_data.json
  */
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'fs';
 import { join, dirname, extname } from 'path';
+import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+/** 设为 false 可跳过方舟干员数据同步，加速调试 */
+const SYNC_ARK_CHARS = false;
 
 // --- CSV 解析 ---
 
@@ -159,12 +163,27 @@ function generateLogoData(logos, publicDir) {
   console.log(`已生成: ${jsonPath} (${logos.length} 个Logo)`);
 }
 
-function convertCsvToJson(csvPath, jsonPath, builtinFiles) {
-  /** 读取 CSV 并生成 arts_data.json（含内置标记） */
-  const text = readFileSync(csvPath, 'utf-8');
-  const { fieldnames, records } = csvDictReader(text);
+function convertCsvToJson(csvPaths, jsonPath, builtinFiles) {
+  /** 读取多个 CSV 并生成 arts_data.json（含内置标记） */
+  // 读取并合并所有 CSV 的记录
+  let allRecords = [];
+  let fieldnames = [];
 
-  const requiredFields = ['角色名', '外文名', '性别', '立绘编号', '文件名', '文件链接', 'logo', '出处'];
+  for (const csvPath of csvPaths) {
+    if (!existsSync(csvPath)) {
+      console.error(`CSV 文件不存在: ${csvPath}`);
+      process.exit(1);
+    }
+    const text = readFileSync(csvPath, 'utf-8');
+    const result = csvDictReader(text);
+    if (fieldnames.length === 0) {
+      fieldnames = result.fieldnames;
+    }
+    console.log(`读取 CSV: ${csvPath} (${result.records.length} 条记录)`);
+    allRecords = allRecords.concat(result.records);
+  }
+
+  const requiredFields = ['角色名', '外文名', '性别', '立绘编号', '文件名', '文件链接', '势力logo', '出处'];
   const missing = requiredFields.filter(f => !fieldnames.includes(f));
   if (missing.length > 0) {
     console.error(`CSV 缺少必填列: ${JSON.stringify(missing)}`);
@@ -175,7 +194,7 @@ function convertCsvToJson(csvPath, jsonPath, builtinFiles) {
   const sourceStats = {};
   const charSource = {};
 
-  for (const row of records) {
+  for (const row of allRecords) {
     const name = row['角色名'];
     const source = row['出处'] || '';
 
@@ -195,7 +214,7 @@ function convertCsvToJson(csvPath, jsonPath, builtinFiles) {
         '外文名': row['外文名'] || '',
         '性别': row['性别'] || '',
         '立绘': [],
-        'logo': row['logo'] || '',
+        'logo': row['势力logo'] || '',
         '出处': source,
         '信息': {},
       };
@@ -222,7 +241,7 @@ function convertCsvToJson(csvPath, jsonPath, builtinFiles) {
 
     const info = chars[name]['信息'];
     if (Object.keys(info).length === 0) {
-      const infoFields = ['星级', '内部编号', '职业', '分支', '势力', '出身地'];
+      const infoFields = ['星级', '内部编号', '职业', '分支', '势力', '出身地', '上线时间'];
       for (const field of infoFields) {
         const val = (row[field] || '').trim();
         if (val) {
@@ -309,18 +328,33 @@ function main() {
   const publicDir = join(projectRoot, 'public');
   const scriptsDir = join(projectRoot, 'scripts');
 
-  const csvPath = join(scriptsDir, 'arts_data.csv');
+  const csvPaths = [
+    join(scriptsDir, 'arts_data.csv'),
+    join(scriptsDir, 'ark_chars.csv'),
+  ];
   const jsonPath = join(publicDir, 'arts_data.json');
 
-  if (!existsSync(csvPath)) {
-    console.error(`CSV 文件不存在: ${csvPath}`);
-    process.exit(1);
+  for (const csvPath of csvPaths) {
+    if (!existsSync(csvPath)) {
+      console.error(`CSV 文件不存在: ${csvPath}`);
+      process.exit(1);
+    }
   }
 
   console.log(`项目根目录: ${projectRoot}`);
-  console.log(`读取 CSV: ${csvPath}`);
   console.log(`输出 JSON: ${jsonPath}`);
   console.log();
+
+  // 0. 预先同步方舟干员数据
+  if (SYNC_ARK_CHARS) {
+    console.log('正在同步方舟干员数据...');
+    try {
+      execSync(`node ${join(scriptsDir, 'update_ark_chars.js')}`, { stdio: 'inherit', cwd: projectRoot });
+    } catch (e) {
+      console.error('同步方舟干员数据失败，继续使用已有数据:', e.message);
+    }
+    console.log();
+  }
 
   // 1. 扫描内置立绘
   const builtinFiles = scanChararts(publicDir);
@@ -330,7 +364,7 @@ function main() {
   generateLogoData(logos, publicDir);
 
   // 3. 生成 arts_data.json（含内置标记）
-  convertCsvToJson(csvPath, jsonPath, builtinFiles);
+  convertCsvToJson(csvPaths, jsonPath, builtinFiles);
 
   console.log();
   console.log('构建完成！');

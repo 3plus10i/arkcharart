@@ -2,10 +2,11 @@
 
 ## 1. 架构概览
 
-纯静态 SPA，无后端。构建时由 Python 脚本从 CSV + 目录扫描生成数据文件，运行时前端拉取 JSON 完成交互和 Canvas 合成。
+纯静态 SPA，无后端。构建时由 JS 脚本从 CSV + 目录扫描生成数据文件，运行时前端拉取 JSON 完成交互和 Canvas 合成。
 
 ```
-构建时:  scripts/arts_data.csv + public/chararts/ + public/logos/  →  scripts/build_data.js  →  public/arts_data.json + public/logo_data.json
+构建时:  scripts/arts_data.csv + scripts/ark_chars.csv  ← 合并解析
+                     + public/chararts/ + public/logos/  →  scripts/build_data.js  →  public/arts_data.json + public/logo_data.json
 运行时:  arts_data.json  →  App.jsx(筛选/选择)  →  composeImage.js(Canvas合成)  →  PNG下载
 ```
 
@@ -15,14 +16,14 @@
 
 `npm run dev` 和 `npm run build` 前自动执行，完成以下工作：
 
-1. 读取 `scripts/arts_data.csv`
+1. 读取 `scripts/arts_data.csv`（其他来源）和 `scripts/ark_chars.csv`（方舟干员），合并记录
 2. 扫描 `public/chararts/`，给每条立绘标记 `内置: true/false`
 3. 扫描 `public/logos/`，生成 `public/logo_data.json`
 4. 生成 `public/arts_data.json`
 
 | 输出文件 | 数据来源 | 内容 |
 |----------|----------|------|
-| `public/arts_data.json` | `scripts/arts_data.csv` + `public/chararts/` 扫描 | 角色主数据，含内置立绘标记 |
+| `public/arts_data.json` | `scripts/arts_data.csv` + `scripts/ark_chars.csv` + `public/chararts/` 扫描 | 角色主数据，含内置立绘标记 |
 | `public/logo_data.json` | `public/logos/` 目录扫描 | `[{ logo: string, ext: 'png'|'svg' }]` logo名+扩展名数组 |
 
 ### 2.2 `public/arts_data.json` 结构
@@ -44,7 +45,7 @@
       ],
       "logo": "伊比利亚",
       "出处": "方舟干员",
-      "信息": { "星级": 5, "职业": "狙击", "分支": "速射手", "出身地": "伊比利亚" }
+      "信息": { "星级": 5, "职业": "狙击", "分支": "速射手", "势力": "伊比利亚", "出身地": "伊比利亚", "上线时间": "2019-04-30" }
     }
   ]
 }

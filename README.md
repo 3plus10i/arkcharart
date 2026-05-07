@@ -28,14 +28,18 @@ npm run build    # 构建生产版本
 ## 添加立绘
 
 1. 将立绘放入 `public/chararts/`
-2. 在 `scripts/arts_data.csv` 中添加对应记录（`文件名` 字段须与实际文件名一致）
+2. 根据角色来源在对应 CSV 中添加记录（`文件名` 字段须与实际文件名一致）：
+   - 方舟干员 → `scripts/ark_chars.csv`（可使用 `npm run update-ark-chars` 自动从 PRTS 同步）
+   - 其他来源 → `scripts/arts_data.csv`
 3. 运行 `npm run build-data`
 
 ## 项目结构
 
 ```
 scripts/
-  arts_data.csv       # 角色数据源（手工维护的CSV）
+  arts_data.csv       # 角色数据源（其他来源，手工维护）
+  ark_chars.csv       # 角色数据源（方舟干员，可自动同步）
+  update_ark_chars.js # 从 PRTS 自动更新 ark_chars.csv
   build_data.js       # 统一构建脚本
 public/
   chararts/           # 角色立绘 PNG
