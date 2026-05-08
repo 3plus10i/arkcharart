@@ -8,3 +8,4 @@ package-lock.json
 arts_data.json
 logo_data.json
 ~*.xlsx
+.deepseek

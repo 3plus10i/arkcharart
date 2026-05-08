@@ -17,6 +17,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 /** 设为 false 可跳过方舟干员数据同步，加速调试 */
+// 推送到远端时可以设置为 false，最好常态false
 const SYNC_ARK_CHARS = false;
 
 // --- CSV 解析 ---

@@ -554,7 +554,6 @@ function App() {
                     setPendingChar('')
                     setPendingSkinCode('')
                   }}
-                  allowClear
                 >
                   {comefromOptions.map(cf => (
                     <Option key={cf} value={cf}>{cf}</Option>
@@ -568,18 +567,19 @@ function App() {
                   onChange={handleFileChange}
                   customRequest={() => {}}
                 >
-                  <Button icon={<UploadOutlined />}>上传</Button>
+                  <Button color="default" variant="dashed" icon={<UploadOutlined />}>上传</Button>
                 </Upload>
               </Col>
               <Col>
-                <Button icon={<ReloadOutlined />} onClick={handleSelectorReset}>重置</Button>
+                <Button icon={<ReloadOutlined />} onClick={handleSelectorReset} style={{ borderColor: '#69b1ff' }}>重置</Button>
               </Col>
             </Row>
             </div>
 
             {/* 筛选器 */}
-            {selectedComefrom && (selectedComefrom === '方舟干员' || selectedComefrom === '终末地') && (
+            {selectedComefrom && (
               <div style={{ marginLeft: 16, borderLeft: '2px solid #e8e8e8', paddingLeft: 12 }}>
+            {(selectedComefrom === '方舟干员' || selectedComefrom === '终末地') && (
               <>
                 <Row gutter={[8, 8]} style={{ marginBottom: 8 }}>
                   <Col span={12}>
@@ -604,7 +604,7 @@ function App() {
                           setSelectedBranch('不限')
                         }
                       }}
-                      allowClear
+                      // allowClear
                       size="small"
                     >
                       {professionOptions.map(p => (
@@ -622,7 +622,7 @@ function App() {
                         setPendingChar('')
                         setPendingSkinCode('')
                       }}
-                      allowClear
+                      // allowClear
                       size="small"
                     >
                       {branchOptions.map(b => (
@@ -642,7 +642,7 @@ function App() {
                         setPendingChar('')
                         setPendingSkinCode('')
                       }}
-                      allowClear
+                      // allowClear
                       size="small"
                     >
                       {starOptions.map(s => (
@@ -660,7 +660,7 @@ function App() {
                         setPendingChar('')
                         setPendingSkinCode('')
                       }}
-                      allowClear
+                      // allowClear
                       size="small"
                     >
                       {genderOptions.map(g => (
@@ -670,13 +670,11 @@ function App() {
                   </Col>
                 </Row>
               </>
-              </div>
             )}
 
             {/* 角色 + 立绘 */}
-            {selectedComefrom && (<>
               <Row gutter={[8, 8]} style={{ marginBottom: 8 }}>
-                <Col span={14}>
+                <Col span={16}>
                   <Select
                     style={{ width: '100%' }}
                     placeholder="输入名字搜索 / 选择角色"
@@ -689,15 +687,14 @@ function App() {
                     filterOption={(input, option) =>
                       option.children?.toString().toLowerCase().includes(input.toLowerCase())
                     }
-                    allowClear
-                    suffixIcon={<InfoCircleOutlined style={{ color: '#bfbfbf', fontSize: 12 }} title="可直接输入角色名搜索" />}
+                    suffixIcon={<Tooltip title="可直接输入角色名搜索"><InfoCircleOutlined style={{ color: '#bfbfbf', fontSize: 12 }} /></Tooltip>}
                   >
                     {filteredCharNames.map(name => (
                       <Option key={name} value={name}>{name}</Option>
                     ))}
                   </Select>
                 </Col>
-                <Col span={10}>
+                <Col span={8}>
                   <Select
                     style={{ width: '100%' }}
                     placeholder="立绘"
@@ -713,7 +710,8 @@ function App() {
                   </Select>
                 </Col>
               </Row>
-            </>)}
+            </div>
+            )}
 
             {/* 角色信息 */}
             {pendingCharRecord && (() => {
@@ -1002,8 +1000,8 @@ function App() {
                 </label>
                 <Switch size="middle" checked={clipFeather} onChange={setClipFeather} />
                 <div style={{ flex: 1 }} />
-                <Tooltip title="重置图像参数">
-                  <Button icon={<ReloadOutlined />} onClick={handleReset} size="middle">重置调整</Button>
+                <Tooltip title="重置图像参数为默认值">
+                  <Button icon={<ReloadOutlined />} onClick={handleReset} size="middle" style={{ borderColor: '#69b1ff' }}>重置调整</Button>
                 </Tooltip>
               </div>
             </div>
