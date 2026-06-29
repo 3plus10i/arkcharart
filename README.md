@@ -6,7 +6,7 @@
 
 也有一些非明日方舟干员角色可选。或者自己上传素材。
 
-尝试一下：https://arkcharart.3plus10i.top/
+尝试一下：https://arkart.3plus10i.top/
 
 ## 功能
 
